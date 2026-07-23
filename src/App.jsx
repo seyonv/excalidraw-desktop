@@ -2,12 +2,30 @@ import { useState, useEffect } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./App.css";
+import { invoke } from "@tauri-apps/api/core";
 
 function App() {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const [appState, setAppState] = useState({});
   const [elements, setElements] = useState([]);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+
+    invoke("get_pending_file").then((content) => {
+      if (!content) return;
+      try {
+        const data = JSON.parse(content);
+        excalidrawAPI.updateScene({
+          elements: data.elements || [],
+          appState: data.appState || {},
+        });
+      } catch (e) {
+        console.error("Failed to parse excalidraw file:", e);
+      }
+    });
+  }, [excalidrawAPI]);
 
   useEffect(() => {
     window.EXCALIDRAW_ASSET_PATH = "/";
