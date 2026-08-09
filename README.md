@@ -1,57 +1,37 @@
 # Excalidraw Desktop
 
-[![Enhanced](https://img.shields.io/badge/-ENHANCED-orange?style=for-the-badge)](https://github.com/burnt0rice/excalidraw-desktop)
+A lightweight desktop app for [Excalidraw](https://excalidraw.com), built with Tauri. Runs fully offline on macOS, Linux, and Windows.
 
-An **enhanced** lightweight desktop wrapper for [Excalidraw](https://excalidraw.com) — built on a Tauri fork with native **.excalidraw** file association for one-click opening. Available for **macOS**, **Linux**, and **Windows**.
+## Features
 
-Double-click any `.excalidraw` file to open and edit instantly — no browser needed. Beyond the pure web editor, Excalidraw Desktop adds native file handling, system integration, and an **enhanced** offline-first experience.
+- **Drawing library sidebar** — browse, switch between, create, rename, and delete drawings without leaving the app
+- **Real files on disk** — every drawing is a standard `.excalidraw` file in `~/Documents/Excalidraw`, so you can back them up, share them, or drop them into excalidraw.com
+- **Autosave** — changes are written to disk as you draw
+- **Native file association** — double-click any `.excalidraw` file to open it
+- **Offline-first** — no account, no network, no sync
 
----
+## Where drawings are stored
 
-## ⚡ Features
+```
+~/Documents/Excalidraw/
+  My Diagram.excalidraw
+  Untitled 2.excalidraw
+```
 
-- ✅ **Enhanced offline-first** — no internet connection ever needed, with local file save/load
-- ✅ **Native .excalidraw file association** — double-click any file to open, edit, and save seamlessly
-- ✅ **Enhanced drawing capabilities** — unlocked canvas optimizations and improved tooling beyond the web version
-- ✅ **Cross-platform** — Mac, Linux, and Windows builds available
-- ✅ **Lightweight** — built on a Tauri fork, drastically smaller than Electron alternatives
-- ✅ **Session persistence** — your work survives app restarts and system reboots
+The filename is the drawing name — rename a file in Finder and it shows up renamed in the sidebar. Files use the standard Excalidraw export format.
 
----
+Set `EXCALIDRAW_LIBRARY_DIR` to keep the library somewhere else (a synced folder, for example).
 
-## 🚨 Important Notice
+## Development
 
-> ⚠️ **Saved files are stored in your system's Downloads folder**  
-> When you manually save or export your drawing, the file will be written to your OS default **Downloads** directory.
+```bash
+npm install
+npm run tauri dev      # run the app
+npm run tauri build    # produce installers
+```
 
----
+Requires [Node.js](https://nodejs.org) and the [Rust toolchain](https://rustup.rs).
 
-## 📦 Installation
+## License
 
-Download the latest release for your platform from the [Releases](https://github.com/burnt0rice/excalidraw-desktop/releases) page.
-
-- **macOS** – `.dmg` installer
-- **Windows** – `.msi` or `.exe`
-- **Linux** – `.AppImage`, `.deb`, or `.tar.gz`
-
-After installation, `.excalidraw` files will be automatically associated with Excalidraw Desktop.
-
----
-
-## 🧾 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-## 🙌 Credits
-
-- [Excalidraw](https://github.com/excalidraw/excalidraw)
-- Desktop app powered by a [Tauri](https://tauri.app) fork
-
----
-
-## 💬 Feedback & Contributions
-
-Issues, feature requests, and pull requests are welcome.  
-Let's make offline sketching better together.
+MIT
