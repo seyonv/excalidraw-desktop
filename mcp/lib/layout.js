@@ -47,11 +47,12 @@ export function measure(text) {
 
 /** Assigns every node a rank: 0 for roots, else 1 + max(rank of predecessors). */
 function rank(nodes, edges) {
-  const ids = new Set(nodes.map((n) => n.id));
-  const incoming = new Map(nodes.map((n) => [n.id, 0]));
-  const out = new Map(nodes.map((n) => [n.id, []]));
+  const validNodes = nodes.filter((n) => n && typeof n === "object");
+  const ids = new Set(validNodes.map((n) => n.id));
+  const incoming = new Map(validNodes.map((n) => [n.id, 0]));
+  const out = new Map(validNodes.map((n) => [n.id, []]));
   for (const e of edges) {
-    if (!ids.has(e.from) || !ids.has(e.to) || e.from === e.to) continue;
+    if (!e || typeof e !== "object" || !ids.has(e.from) || !ids.has(e.to) || e.from === e.to) continue;
     out.get(e.from).push(e.to);
     incoming.set(e.to, incoming.get(e.to) + 1);
   }
@@ -59,8 +60,8 @@ function rank(nodes, edges) {
   const ranks = new Map();
   // Roots first; if a cycle leaves nothing unvisited, seed with the first
   // remaining node so every node is still placed.
-  let frontier = nodes.filter((n) => incoming.get(n.id) === 0).map((n) => n.id);
-  if (frontier.length === 0 && nodes.length > 0) frontier = [nodes[0].id];
+  let frontier = validNodes.filter((n) => incoming.get(n.id) === 0).map((n) => n.id);
+  if (frontier.length === 0 && validNodes.length > 0) frontier = [validNodes[0].id];
   for (const id of frontier) ranks.set(id, 0);
 
   while (frontier.length) {
@@ -77,17 +78,19 @@ function rank(nodes, edges) {
 
   // Anything unreachable (disconnected, or stranded behind a cycle) goes last.
   const maxRank = ranks.size ? Math.max(...ranks.values()) : 0;
-  for (const n of nodes) if (!ranks.has(n.id)) ranks.set(n.id, maxRank + 1);
+  for (const n of validNodes) if (!ranks.has(n.id)) ranks.set(n.id, maxRank + 1);
   return ranks;
 }
 
 export function layout(nodes, edges, { direction = "down" } = {}) {
-  if (nodes.length === 0) return [];
+  // Node ids are assumed unique. The caller owns deduplication.
+  const validNodes = nodes.filter((n) => n && typeof n === "object");
+  if (validNodes.length === 0) return [];
   const down = direction !== "right";
-  const ranks = rank(nodes, edges);
+  const ranks = rank(validNodes, edges);
 
   const byRank = new Map();
-  for (const n of nodes) {
+  for (const n of validNodes) {
     const r = ranks.get(n.id);
     if (!byRank.has(r)) byRank.set(r, []);
     byRank.get(r).push({ ...n, ...measure(n.text) });

@@ -85,3 +85,84 @@ test("ranks are centred on the flow axis", () => {
   const rowRight = Math.max(centre(at.B), centre(at.C), centre(at.D));
   assert.ok(centre(at.A) > rowLeft && centre(at.A) < rowRight);
 });
+
+// Test Finding 1 fix: malformed edges should be skipped without throwing
+test("malformed edges are skipped without error", () => {
+  const out = layout(
+    nodes("A", "B"),
+    [null, undefined, "garbage", {}, { from: "A" }, { from: "A", to: "B" }],
+    { direction: "down" },
+  );
+  assert.equal(out.length, 2);
+  const at = Object.fromEntries(out.map((n) => [n.id, n]));
+  assert.ok(at.A.y < at.B.y, "valid edge still ranked B below A");
+});
+
+// Test Finding 3a: full pairwise non-overlap checking
+const boxesOverlap = (a, b) => {
+  return !(
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x ||
+    a.y + a.height <= b.y ||
+    b.y + b.height <= a.y
+  );
+};
+
+const assertNoOverlaps = (boxes) => {
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      assert.ok(
+        !boxesOverlap(boxes[i], boxes[j]),
+        `boxes ${boxes[i].id} and ${boxes[j].id} overlap`,
+      );
+    }
+  }
+};
+
+test("full pairwise non-overlap: single row of 4 nodes", () => {
+  const out = layout(nodes("A", "B", "C", "D"), [], { direction: "down" });
+  assertNoOverlaps(out);
+});
+
+test("full pairwise non-overlap: fan-out to 8 children", () => {
+  const children = Array.from({ length: 8 }, (_, i) => String.fromCharCode(66 + i)); // B-I
+  const edges = children.map((c) => edge("A", c));
+  const out = layout(nodes("A", ...children), edges, { direction: "down" });
+  assertNoOverlaps(out);
+});
+
+test("full pairwise non-overlap: diamond graph", () => {
+  const out = layout(
+    nodes("A", "B", "C", "D"),
+    [edge("A", "B"), edge("A", "C"), edge("B", "D"), edge("C", "D")],
+    { direction: "down" },
+  );
+  assertNoOverlaps(out);
+});
+
+test("full pairwise non-overlap: mixed label lengths", () => {
+  const out = layout(
+    [
+      { id: "A", text: "Very long label here", shape: "rect" },
+      { id: "B", text: "S", shape: "rect" },
+      { id: "C", text: "Medium", shape: "rect" },
+    ],
+    [],
+    { direction: "down" },
+  );
+  assertNoOverlaps(out);
+});
+
+test("full pairwise non-overlap: fan-out with direction right", () => {
+  const children = Array.from({ length: 8 }, (_, i) => String.fromCharCode(66 + i)); // B-I
+  const edges = children.map((c) => edge("A", c));
+  const out = layout(nodes("A", ...children), edges, { direction: "right" });
+  assertNoOverlaps(out);
+});
+
+// Test Finding 3c: malformed node entries are skipped
+test("malformed node entries are skipped without error", () => {
+  const out = layout([null, { id: "A", text: "A", shape: "rect" }], [], { direction: "down" });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, "A");
+});
