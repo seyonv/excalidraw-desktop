@@ -10,7 +10,7 @@ process.env.EXCALIDRAW_LIBRARY_DIR = dir;
 // Never launch a real app from the test suite.
 process.env.EXCALIDRAW_APP = "true";
 
-const { requestOpen, OPEN_REQUEST_FILE } = await import("./control.js");
+const { requestOpen, OPEN_REQUEST_FILE, launcher } = await import("./control.js");
 const { listDrawings } = await import("./library.js");
 const requestPath = join(dir, OPEN_REQUEST_FILE);
 
@@ -177,17 +177,24 @@ test("garbage EXCALIDRAW_MCP_FOCUS value like 'banana' writes but does NOT launc
   rmSync(markerDir, { recursive: true, force: true });
 });
 
-test("EXCALIDRAW_APP='' falls back to default launcher checks", async () => {
-  rmSync(requestPath, { force: true });
-  // We can't safely test the actual default launcher without launching the app.
-  // Instead, verify that empty string doesn't cause a crash and that the file is written.
-  // The actual default launcher is tested indirectly by the fact that it doesn't throw.
-  process.env.EXCALIDRAW_MCP_FOCUS = "switch"; // Use switch to avoid launch attempt
-  process.env.EXCALIDRAW_APP = ""; // Empty string
+test("launcher() returns default when EXCALIDRAW_APP is unset", () => {
+  delete process.env.EXCALIDRAW_APP;
+  const [cmd, args] = launcher();
+  assert.deepEqual([cmd, args], ["open", ["-a", "Excalidraw Dev"]]);
+  process.env.EXCALIDRAW_APP = "true";
+});
 
-  await requestOpen("Test draw");
-  assert.ok(existsSync(requestPath), "file written even with empty EXCALIDRAW_APP");
+test("launcher() returns default when EXCALIDRAW_APP is empty string (falsy fallback case)", () => {
+  process.env.EXCALIDRAW_APP = "";
+  const [cmd, args] = launcher();
+  assert.deepEqual([cmd, args], ["open", ["-a", "Excalidraw Dev"]], "empty string must fall back to default, not spawn empty command");
+  process.env.EXCALIDRAW_APP = "true";
+});
 
+test("launcher() returns custom command when EXCALIDRAW_APP is set", () => {
+  process.env.EXCALIDRAW_APP = "/bin/true";
+  const [cmd, args] = launcher();
+  assert.deepEqual([cmd, args], ["/bin/true", []]);
   process.env.EXCALIDRAW_APP = "true";
 });
 

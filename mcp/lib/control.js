@@ -12,7 +12,7 @@ export const OPEN_REQUEST_FILE = ".open-request";
 const focusMode = () => process.env.EXCALIDRAW_MCP_FOCUS || "focus";
 
 /** Default targets the existing launcher applet, which handles launch-or-focus. */
-function launcher() {
+export function launcher() {
   const custom = process.env.EXCALIDRAW_APP;
   if (custom) return [custom, []];
   return ["open", ["-a", "Excalidraw Dev"]];
