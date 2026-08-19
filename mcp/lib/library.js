@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { join, dirname, extname, basename } from "node:path";
 import { sanitize } from "./sanitize.js";
 
 const EXT = "excalidraw";
@@ -36,12 +36,12 @@ export async function listDrawings() {
   const entries = await fs.readdir(libraryDir());
   const drawings = [];
   for (const entry of entries) {
-    if (entry.startsWith(".") || !entry.endsWith(`.${EXT}`)) continue;
-    const name = entry.slice(0, -(EXT.length + 1));
+    if (extname(entry) !== `.${EXT}`) continue;
+    const name = basename(entry, `.${EXT}`);
     const stat = await fs.stat(join(libraryDir(), entry));
     drawings.push({ name, modified: Math.floor(stat.mtimeMs / 1000) });
   }
-  drawings.sort((a, b) => b.modified - a.modified || a.name.localeCompare(b.name));
+  drawings.sort((a, b) => b.modified - a.modified || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return drawings;
 }
 
@@ -54,26 +54,33 @@ export async function writeDrawing(name, contents) {
   await fs.writeFile(pathFor(name), contents, "utf8");
 }
 
-/** Appends " 2", " 3", ... until the name is free. */
-export async function uniqueName(base) {
+/** Appends " 2", " 3", ... until the name is free. `skip` is an optional path
+ * allowed to collide (used by rename, so renaming to the same name is a no-op). */
+export async function uniqueName(base, skip) {
   const clean = sanitize(base);
   let candidate = clean;
   let n = 1;
-  while (await exists(candidate)) {
+  while (true) {
+    const path = pathFor(candidate);
+    const exists = await fs.stat(path).then(() => true).catch(() => false);
+    if (!exists || path === skip) {
+      return candidate;
+    }
     n += 1;
     candidate = `${clean} ${n}`;
   }
-  return candidate;
 }
 
 /** Returns the name actually used, which may differ if newName collided. */
 export async function renameDrawing(oldName, newName) {
   const from = pathFor(oldName);
   if (!(await exists(oldName))) throw new Error(`${oldName} no longer exists`);
-  if (pathFor(newName) === from) return sanitize(newName);
-  const used = await uniqueName(newName);
-  await fs.rename(from, pathFor(used));
-  return used;
+  const resolved = await uniqueName(newName, from);
+  const to = pathFor(resolved);
+  if (from !== to) {
+    await fs.rename(from, to);
+  }
+  return resolved;
 }
 
 export async function deleteDrawing(name) {
