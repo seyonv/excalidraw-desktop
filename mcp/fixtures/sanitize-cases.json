@@ -11,5 +11,9 @@
   { "input": "v1.2 sketch", "expected": "v1.2 sketch" },
   { "input": "  padded  ", "expected": "padded" },
   { "input": "trailing.", "expected": "trailing" },
-  { "input": "Auth flow", "expected": "Auth flow" }
+  { "input": "Auth flow", "expected": "Auth flow" },
+  { "input": "\uFEFFhello", "expected": "\uFEFFhello" },
+  { "input": "\u00A0hello", "expected": "hello" },
+  { "input": "\u2028hello", "expected": "hello" },
+  { "input": "...", "expected": "Untitled" }
 ]

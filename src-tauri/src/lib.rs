@@ -288,6 +288,47 @@ mod tests {
         }
     }
 
+    /// Collects all Unicode code points where char::is_whitespace() and
+    /// char::is_control() are true, pinning them to a fixture so the JS
+    /// mirror can build its character classification from the same authority.
+    /// Run with UPDATE_SANITIZE_FIXTURE=1 to regenerate the fixture.
+    #[test]
+    fn sanitize_classification_fixture_is_current() {
+        let mut whitespace = Vec::new();
+        let mut control = Vec::new();
+
+        for i in 0u32..=0x10FFFFu32 {
+            if let Some(ch) = char::from_u32(i) {
+                if ch.is_whitespace() {
+                    whitespace.push(i as u64);
+                }
+                if ch.is_control() {
+                    control.push(i as u64);
+                }
+            }
+        }
+
+        let fixture = serde_json::json!({
+            "whitespace": whitespace,
+            "control": control,
+        });
+
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("mcp/fixtures/sanitize-classification.json");
+
+        if std::env::var("UPDATE_SANITIZE_FIXTURE").is_ok() {
+            fs::write(&path, fixture.to_string() + "\n")
+                .unwrap_or_else(|e| panic!("could not write {}: {e}", path.display()));
+        } else {
+            let raw = fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("could not read {}: {e}", path.display()));
+            let expected: serde_json::Value = serde_json::from_str(&raw).unwrap();
+            assert_eq!(fixture, expected, "Unicode classification fixture is out of date. Run with UPDATE_SANITIZE_FIXTURE=1");
+        }
+    }
+
     /// One test for all filesystem behaviour: `EXCALIDRAW_LIBRARY_DIR` is
     /// process-global, so these cannot safely run in parallel.
     #[test]
