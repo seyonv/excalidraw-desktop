@@ -1,0 +1,15 @@
+[
+  { "input": "../../etc/passwd", "expected": "-..-etc-passwd" },
+  { "input": "a/b", "expected": "a-b" },
+  { "input": "..", "expected": "Untitled" },
+  { "input": ".", "expected": "Untitled" },
+  { "input": "   ", "expected": "Untitled" },
+  { "input": "", "expected": "Untitled" },
+  { "input": "back\\slash", "expected": "back-slash" },
+  { "input": "C:\\Windows\\system32", "expected": "C--Windows-system32" },
+  { "input": "My Diagram", "expected": "My Diagram" },
+  { "input": "v1.2 sketch", "expected": "v1.2 sketch" },
+  { "input": "  padded  ", "expected": "padded" },
+  { "input": "trailing.", "expected": "trailing" },
+  { "input": "Auth flow", "expected": "Auth flow" }
+]

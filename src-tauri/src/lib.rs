@@ -269,6 +269,25 @@ mod tests {
         assert_eq!(sanitize(&"x".repeat(500)).chars().count(), 120);
     }
 
+    /// The JS mirror in `mcp/lib/sanitize.js` must agree with this function on
+    /// every fixture case, or the MCP server predicts the wrong filename.
+    #[test]
+    fn sanitize_matches_shared_fixture() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("mcp/fixtures/sanitize-cases.json");
+        let raw = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("could not read {}: {e}", path.display()));
+        let cases: Vec<serde_json::Value> = serde_json::from_str(&raw).unwrap();
+        assert!(!cases.is_empty(), "fixture is empty");
+        for case in cases {
+            let input = case["input"].as_str().unwrap();
+            let expected = case["expected"].as_str().unwrap();
+            assert_eq!(sanitize(input), expected, "mismatch for {input:?}");
+        }
+    }
+
     /// One test for all filesystem behaviour: `EXCALIDRAW_LIBRARY_DIR` is
     /// process-global, so these cannot safely run in parallel.
     #[test]
