@@ -307,6 +307,16 @@ fn take_open_request() -> Result<Option<String>, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(PendingFile(Mutex::new(None)))
+        // Must be the first plugin registered. A second launch (e.g. the MCP
+        // server's `open -a`, or a second `tauri dev`) would otherwise start
+        // its own window onto the same library directory — two windows then
+        // autosave the same files independently and clobber each other.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let args: Vec<String> = std::env::args().collect();

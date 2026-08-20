@@ -57,6 +57,12 @@ starts formatting filenames, the seams have eroded.
   ordering is load-bearing for echo suppression — if the record moved after
   the `await`, a watcher event for that write could arrive before it was
   recorded, and get treated as an external change instead of our own echo.
+- **Only one app window may run against a given library directory.** Two
+  windows both watch and autosave the same `.excalidraw` files; whichever one
+  flushes last wins, silently discarding the other's writes (including ones
+  made by the MCP server directly to disk). `tauri-plugin-single-instance` in
+  `src-tauri/src/lib.rs` focuses the existing window instead of spawning a
+  second one — don't remove it, and don't run `npm run tauri dev` twice.
 - **The sanitised name is the only name the MCP server ever returns, writes
   into `.open-request`, or hands to another module.** A tool handler resolves
   the caller-supplied name once at the top (`library.resolveName()`) and uses
