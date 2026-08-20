@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname, extname, basename } from "node:path";
+import { join, dirname, extname, basename, resolve } from "node:path";
 import { sanitize } from "./sanitize.js";
 
 const EXT = "excalidraw";
@@ -10,12 +10,22 @@ export function libraryDir() {
   return process.env.EXCALIDRAW_LIBRARY_DIR || join(homedir(), "Documents", "Excalidraw");
 }
 
-/** Resolves a name to a path guaranteed to sit directly inside the library. */
+/** Resolves a name to a path guaranteed to sit directly inside the library.
+ * `resolve()` canonicalises the directory (drops a trailing slash, etc.) so
+ * the dirname comparison below can't fail on a merely-differently-formatted
+ * but equal path — e.g. EXCALIDRAW_LIBRARY_DIR=/tmp/lib/ must not throw. */
 export function pathFor(name) {
-  const dir = libraryDir();
+  const dir = resolve(libraryDir());
   const path = join(dir, `${sanitize(name)}.${EXT}`);
   if (dirname(path) !== dir) throw new Error("invalid drawing name");
   return path;
+}
+
+/** The sanitised name a drawing name resolves to on disk. This is the only
+ * name the server should ever return to a caller, write into the control
+ * file, or hand to another module — see resolveName(). */
+export function resolveName(name) {
+  return sanitize(name);
 }
 
 async function ensureDir() {

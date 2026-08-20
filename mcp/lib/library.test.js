@@ -107,3 +107,21 @@ test("sorts same-second ties by byte-wise order (case-sensitive)", async () => {
   const zebraIdx = names.indexOf("Zebra");
   assert.ok(zebraIdx < appleIdx, "Zebra (90) should come before apple (97) in byte-wise order");
 });
+
+test("a trailing slash on EXCALIDRAW_LIBRARY_DIR does not break pathFor", async () => {
+  const previous = process.env.EXCALIDRAW_LIBRARY_DIR;
+  process.env.EXCALIDRAW_LIBRARY_DIR = previous + sep;
+  try {
+    // Must not throw "invalid drawing name" — dirname(pathFor(...)) has to
+    // compare equal to the (canonicalised) directory even with the slash.
+    await lib.writeDrawing("Trailing Slash", "{}");
+    assert.equal(await lib.readDrawing("Trailing Slash"), "{}");
+  } finally {
+    process.env.EXCALIDRAW_LIBRARY_DIR = previous;
+  }
+});
+
+test("resolveName returns the sanitised name draw/edit/etc. should use", async () => {
+  assert.equal(lib.resolveName("Auth/flow"), "Auth-flow");
+  assert.equal(lib.resolveName("API: v2"), "API- v2");
+});

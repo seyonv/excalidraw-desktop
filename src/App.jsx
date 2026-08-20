@@ -36,6 +36,9 @@ function App() {
   const [theme, setTheme] = useState("light");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(null);
+  // A non-alarming counterpart to `error` — e.g. "a drawing changed on disk
+  // while you had it open." Reuses the same toast element, styled neutrally.
+  const [notice, setNotice] = useState(null);
 
   const apiRef = useRef(null);
   const activeNameRef = useRef(null);
@@ -207,6 +210,9 @@ function App() {
         elements: parsed.elements,
         captureUpdate: CaptureUpdateAction.IMMEDIATELY,
       });
+      // Cmd+Z is the user's remedy for this, and they cannot know it's
+      // available unless we tell them.
+      setNotice("Updated externally — Cmd+Z to undo");
     });
     return () => {
       unlisten.then((off) => off()).catch(() => {});
@@ -361,6 +367,11 @@ function App() {
         {error && (
           <div className="error-toast" onClick={() => setError(null)}>
             {error}
+          </div>
+        )}
+        {!error && notice && (
+          <div className="error-toast info-toast" onClick={() => setNotice(null)}>
+            {notice}
           </div>
         )}
       </div>

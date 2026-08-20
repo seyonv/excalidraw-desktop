@@ -3,6 +3,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
 import * as library from "./lib/library.js";
@@ -61,7 +62,11 @@ export function createServer() {
         open: z.boolean().optional(),
       },
     },
-    async ({ name, nodes = [], edges = [], direction = "down", mode = "replace", open = true }) => {
+    async ({ name: rawName, nodes = [], edges = [], direction = "down", mode = "replace", open = true }) => {
+      // Resolve to the on-disk (sanitised) name once, and use it everywhere
+      // below — the library write, the open request, and the returned
+      // payload — so nothing downstream ever sees the raw caller-supplied name.
+      const name = library.resolveName(rawName);
       try {
         let scene = buildScene({ nodes, edges, direction });
         if (mode === "append" && (await library.exists(name))) {
@@ -107,7 +112,8 @@ export function createServer() {
         open: z.boolean().optional(),
       },
     },
-    async ({ name, move = [], update = [], remove = [], open = true }) => {
+    async ({ name: rawName, move = [], update = [], remove = [], open = true }) => {
+      const name = library.resolveName(rawName);
       try {
         const scene = parseScene(await library.readDrawing(name));
         const byId = new Map(scene.elements.map((el) => [el.id, el]));
@@ -193,7 +199,8 @@ export function createServer() {
         "positions, sizes, and arrow connections. Read this before editing.",
       inputSchema: { name: z.string() },
     },
-    async ({ name }) => {
+    async ({ name: rawName }) => {
+      const name = library.resolveName(rawName);
       try {
         return ok(describe(await library.readDrawing(name)));
       } catch (e) {
@@ -217,7 +224,8 @@ export function createServer() {
   server.registerTool(
     "delete_drawing",
     { title: "Delete a drawing", inputSchema: { name: z.string() } },
-    async ({ name }) => {
+    async ({ name: rawName }) => {
+      const name = library.resolveName(rawName);
       try {
         // Deliberately a no-op success when `name` does not exist, mirroring
         // Rust's delete_drawing (src-tauri/src/lib.rs), which returns Ok(())
@@ -237,7 +245,8 @@ export function createServer() {
       description: "Bring the Excalidraw desktop app forward on this drawing.",
       inputSchema: { name: z.string() },
     },
-    async ({ name }) => {
+    async ({ name: rawName }) => {
+      const name = library.resolveName(rawName);
       if (!(await library.exists(name))) return fail(`${name} does not exist`);
       await requestOpen(name);
       return ok({ opened: name });
@@ -248,7 +257,11 @@ export function createServer() {
 }
 
 // Self-start on stdio when run directly, not when imported by tests.
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+// Compares against a pathToFileURL()-encoded URL, not a raw `file://` string
+// concatenation — a repo path containing a space (or other characters that
+// get percent-encoded in a URL) would otherwise never match, and the server
+// would exit 0 having connected nothing, with no diagnostic.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = createServer();
   await server.connect(new StdioServerTransport());
 }

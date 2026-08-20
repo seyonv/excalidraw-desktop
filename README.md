@@ -90,7 +90,7 @@ in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude d
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `EXCALIDRAW_MCP_FOCUS` | `focus` | `focus` brings the app forward, `switch` changes the drawing without stealing focus, `off` writes files only |
-| `EXCALIDRAW_APP` | `open -a "Excalidraw Dev"` | How to launch the app |
+| `EXCALIDRAW_APP` | (built-in: launches via `open -a "Excalidraw Dev"`) | Path to an executable to launch, invoked with no arguments — not a shell command string. Unset uses the built-in default shown here. |
 | `EXCALIDRAW_LIBRARY_DIR` | `~/Documents/Excalidraw` | Where drawings live |
 
 ## Installation

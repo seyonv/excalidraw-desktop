@@ -334,3 +334,56 @@ test("delete_drawing rejects a malformed argument instead of throwing", async ()
   });
   assert.equal(result.isError, true);
 });
+
+test("draw returns the sanitised on-disk name, not the raw one passed in", async () => {
+  const client = await connect();
+  const out = json(await client.callTool({
+    name: "draw", arguments: { name: "Auth/flow", nodes: ["A"] },
+  }));
+  assert.equal(out.name, "Auth-flow");
+
+  const list = json(await client.callTool({ name: "list_drawings", arguments: {} }));
+  assert.ok(list.some((d) => d.name === "Auth-flow"));
+  assert.ok(!list.some((d) => d.name === "Auth/flow"));
+});
+
+test("describe_scene resolves a raw name to the same drawing draw wrote", async () => {
+  const client = await connect();
+  await client.callTool({ name: "draw", arguments: { name: "Client/Server flow", nodes: ["A"] } });
+  const scene = json(await client.callTool({
+    name: "describe_scene", arguments: { name: "Client/Server flow" },
+  }));
+  assert.equal(scene.length, 1);
+  assert.equal(scene[0].text, "A");
+});
+
+test("delete_drawing and open_drawing resolve a raw name to the sanitised file", async () => {
+  const client = await connect();
+  await client.callTool({ name: "draw", arguments: { name: "API: v2", nodes: ["A"], open: false } });
+  const opened = json(await client.callTool({
+    name: "open_drawing", arguments: { name: "API: v2" },
+  }));
+  assert.equal(opened.opened, "API- v2");
+
+  const deleted = json(await client.callTool({
+    name: "delete_drawing", arguments: { name: "API: v2" },
+  }));
+  assert.equal(deleted.deleted, "API- v2");
+  const list = json(await client.callTool({ name: "list_drawings", arguments: {} }));
+  assert.ok(!list.some((d) => d.name === "API- v2"));
+});
+
+test(".open-request is written with the sanitised name, never the raw one", async () => {
+  const previousFocus = process.env.EXCALIDRAW_MCP_FOCUS;
+  process.env.EXCALIDRAW_MCP_FOCUS = "switch"; // writes the file but never launches
+  try {
+    const client = await connect();
+    await client.callTool({
+      name: "draw", arguments: { name: "Auth/flow", nodes: ["A"], open: true },
+    });
+    const request = JSON.parse(readFileSync(join(dir, ".open-request"), "utf8"));
+    assert.equal(request.name, "Auth-flow");
+  } finally {
+    process.env.EXCALIDRAW_MCP_FOCUS = previousFocus;
+  }
+});

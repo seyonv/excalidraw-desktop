@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
@@ -12,6 +12,10 @@ use tauri::Manager;
 
 const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
+/// An open-request older than this is ignored, so a request written long ago
+/// (the machine slept, the app crashed before consuming it, ...) can't hijack
+/// the next cold launch with a stale target.
+const OPEN_REQUEST_MAX_AGE: Duration = Duration::from_secs(5 * 60);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(150);
 
 /// A `.excalidraw` passed on the command line (file association), consumed once
@@ -210,11 +214,30 @@ fn drawing_names(paths: &[PathBuf]) -> Vec<String> {
 }
 
 /// Reads and removes the MCP server's open request, if there is one.
+///
+/// The file is read, then removed, then parsed — deliberately in that order.
+/// If parsing happened before removal, a malformed file would fail to parse,
+/// never get removed, and be re-read (and re-fail) on every subsequent watch
+/// event forever. Removing first means a bad file is consumed exactly once,
+/// whatever its contents turn out to be.
 fn open_request_name(dir: &Path) -> Option<String> {
     let path = dir.join(OPEN_REQUEST_FILE);
     let contents = fs::read_to_string(&path).ok()?;
     let _ = fs::remove_file(&path);
     let value: serde_json::Value = serde_json::from_str(&contents).ok()?;
+
+    // Ignore a request that's too old to still be actionable — see
+    // OPEN_REQUEST_MAX_AGE. A request without a usable `at` is treated as
+    // fresh rather than rejected, since older writers may not have set it.
+    if let Some(at_ms) = value.get("at").and_then(|v| v.as_u64()) {
+        let written = UNIX_EPOCH + Duration::from_millis(at_ms);
+        if let Ok(age) = SystemTime::now().duration_since(written) {
+            if age > OPEN_REQUEST_MAX_AGE {
+                return None;
+            }
+        }
+    }
+
     value.get("name")?.as_str().map(|s| s.to_string())
 }
 
@@ -497,7 +520,11 @@ mod tests {
 
         assert_eq!(open_request_name(&dir), None);
 
-        fs::write(&path, r#"{"name":"Auth flow","at":1}"#).unwrap();
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        fs::write(&path, format!(r#"{{"name":"Auth flow","at":{now_ms}}}"#)).unwrap();
         assert_eq!(open_request_name(&dir), Some("Auth flow".to_string()));
         assert!(!path.exists(), "the request must be consumed");
         assert_eq!(open_request_name(&dir), None);
@@ -506,6 +533,21 @@ mod tests {
         fs::write(&path, "not json").unwrap();
         assert_eq!(open_request_name(&dir), None);
         assert!(!path.exists());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn open_request_ignores_a_stale_timestamp() {
+        let dir = std::env::temp_dir().join(format!("excalidraw-req-stale-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(OPEN_REQUEST_FILE);
+
+        // Written well outside OPEN_REQUEST_MAX_AGE: must be ignored, but
+        // still consumed so it can't be re-read on the next event.
+        fs::write(&path, r#"{"name":"Auth flow","at":1}"#).unwrap();
+        assert_eq!(open_request_name(&dir), None);
+        assert!(!path.exists(), "a stale request must still be consumed");
 
         let _ = fs::remove_dir_all(&dir);
     }

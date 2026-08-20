@@ -53,6 +53,16 @@ starts formatting filenames, the seams have eroded.
 - **`sanitize()` is mirrored in `mcp/lib/sanitize.js`** and pinned by
   `mcp/fixtures/sanitize-cases.json`, which both test suites read. Change one,
   and the other's test fails — that is the point.
+- **`flush()` records into `lastWrittenRef` before awaiting the write.** That
+  ordering is load-bearing for echo suppression — if the record moved after
+  the `await`, a watcher event for that write could arrive before it was
+  recorded, and get treated as an external change instead of our own echo.
+- **The sanitised name is the only name the MCP server ever returns, writes
+  into `.open-request`, or hands to another module.** A tool handler resolves
+  the caller-supplied name once at the top (`library.resolveName()`) and uses
+  that resolved value everywhere after — never the raw input. Returning the
+  raw name while the file is written under the sanitised one poisons
+  `activeNameRef` in `App.jsx` and silently breaks live reload for that drawing.
 
 ## Gotchas in this repo
 

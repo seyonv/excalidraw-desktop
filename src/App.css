@@ -41,6 +41,12 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
+/* Same toast shape, neutral colouring — for informational messages (e.g. a
+   drawing changed externally) that should not read as an error. */
+.error-toast.info-toast {
+  background: #343a40;
+}
+
 .loading {
   display: flex;
   flex-direction: column;

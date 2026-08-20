@@ -197,7 +197,7 @@ Focus behaviour is set by `EXCALIDRAW_MCP_FOCUS`:
 | Value | Behaviour |
 | --- | --- |
 | `focus` (default) | Launch if needed, bring the app forward on the drawing |
-| `switch` | Switch the open drawing and update live, but stay in the background; launch only if not running |
+| `switch` | Switch the open drawing and update live, but stay in the background. Does not launch the app if it isn't running — changed during implementation; if the app isn't running there's nothing to switch, so `switch` writes the file and returns, same as `off` |
 | `off` | Write the file only; `open_drawing` remains available explicitly |
 
 The launcher command comes from `EXCALIDRAW_APP`, defaulting to
