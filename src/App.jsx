@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, CaptureUpdateAction } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -8,10 +8,13 @@ import {
   deleteDrawing,
   getPendingFile,
   listDrawings,
+  onLibraryChanged,
+  onOpenRequest,
   parseScene,
   readDrawing,
   renameDrawing,
   serializeScene,
+  takeOpenRequest,
   writeDrawing,
 } from "./lib/drawings";
 
@@ -39,6 +42,10 @@ function App() {
   const dirtyRef = useRef(false);
   const timerRef = useRef(null);
   const bootstrappedRef = useRef(false);
+  // The exact bytes we last wrote per drawing. A watcher event whose contents
+  // match one of these is our own autosave echoing back — dropping it is what
+  // stops write → watch → reload → change → write from looping forever.
+  const lastWrittenRef = useRef(new Map());
 
   const refreshList = useCallback(async () => {
     setDrawings(await listDrawings());
@@ -52,14 +59,13 @@ function App() {
     dirtyRef.current = false;
     const api = apiRef.current;
     try {
-      await writeDrawing(
-        name,
-        serializeScene(
-          api.getSceneElements(),
-          api.getAppState(),
-          api.getFiles(),
-        ),
+      const contents = serializeScene(
+        api.getSceneElements(),
+        api.getAppState(),
+        api.getFiles(),
       );
+      lastWrittenRef.current.set(name, contents);
+      await writeDrawing(name, contents);
     } catch (e) {
       dirtyRef.current = true;
       setError(String(e));
@@ -124,6 +130,12 @@ function App() {
         list = await listDrawings();
       }
 
+      // An MCP open request that arrived while the app was not running.
+      if (!target) {
+        const requested = await takeOpenRequest();
+        if (requested && list.some((d) => d.name === requested)) target = requested;
+      }
+
       if (!target) {
         const last = localStorage.getItem(LAST_ACTIVE_KEY);
         target = list.some((d) => d.name === last) ? last : list[0]?.name;
@@ -158,6 +170,57 @@ function App() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
+
+  // Reload drawings changed underneath us — by the MCP server, or by anything
+  // else that writes to the library folder.
+  useEffect(() => {
+    const unlisten = onLibraryChanged(async (names) => {
+      await refreshList();
+
+      const active = activeNameRef.current;
+      if (!active || !names.includes(active) || !apiRef.current) return;
+
+      const contents = await readDrawing(active).catch(() => null);
+      if (contents === null) return;
+      // Our own autosave coming back around.
+      if (contents === lastWrittenRef.current.get(active)) return;
+
+      const parsed = parseScene(contents);
+      lastWrittenRef.current.set(active, contents);
+      dirtyRef.current = false;
+      clearTimeout(timerRef.current);
+      // captureUpdate: IMMEDIATELY puts this in the undo stack, so Cmd+Z
+      // restores whatever the user had. Never bump sceneKey here — remounting
+      // Excalidraw would throw away scroll and zoom.
+      apiRef.current.updateScene({
+        elements: parsed.elements,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+    });
+    return () => {
+      unlisten.then((off) => off()).catch(() => {});
+    };
+  }, [refreshList]);
+
+  // Something outside the app asked for a drawing — switch to it and come forward.
+  useEffect(() => {
+    const unlisten = onOpenRequest(async (name) => {
+      if (!name || name === activeNameRef.current) {
+        await refreshList();
+        return;
+      }
+      await flushRef.current();
+      try {
+        openScene(name, await readDrawing(name));
+        await refreshList();
+      } catch (e) {
+        setError(String(e));
+      }
+    });
+    return () => {
+      unlisten.then((off) => off()).catch(() => {});
+    };
+  }, [openScene, refreshList]);
 
   useEffect(() => {
     window.EXCALIDRAW_ASSET_PATH = "/";

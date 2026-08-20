@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 // The only module that talks to the Rust side. Drawings live as real
 // `.excalidraw` files in ~/Documents/Excalidraw, named by their file stem.
@@ -21,6 +22,16 @@ export const renameDrawing = (oldName, newName) =>
 export const deleteDrawing = (name) => invoke("delete_drawing", { name });
 
 export const getPendingFile = () => invoke("get_pending_file");
+
+export const takeOpenRequest = () => invoke("take_open_request");
+
+/** Fires when drawings change on disk — including changes made by the MCP server. */
+export const onLibraryChanged = (handler) =>
+  listen("library-changed", (event) => handler(event.payload?.names ?? []));
+
+/** Fires when something outside the app asks for a drawing to be opened. */
+export const onOpenRequest = (handler) =>
+  listen("open-request", (event) => handler(event.payload?.name));
 
 /** Serializes a live Excalidraw scene into the standard export format. */
 export function serializeScene(elements, appState, files) {
