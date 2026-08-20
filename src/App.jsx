@@ -189,9 +189,20 @@ function App() {
       lastWrittenRef.current.set(active, contents);
       dirtyRef.current = false;
       clearTimeout(timerRef.current);
+      // SceneData has no `files` field — binary files (embedded images) must
+      // be registered separately before the elements referencing them render,
+      // or the image shows up broken.
+      const files = Object.values(parsed.files ?? {});
+      if (files.length) apiRef.current.addFiles(files);
       // captureUpdate: IMMEDIATELY puts this in the undo stack, so Cmd+Z
       // restores whatever the user had. Never bump sceneKey here — remounting
       // Excalidraw would throw away scroll and zoom.
+      // This updateScene fires onChange, which schedules one autosave. That
+      // write normalises the file to Excalidraw's own serialisation (usually
+      // not byte-identical to what was just read), so one extra disk write
+      // follows every external reload. It settles: flush() records what it
+      // wrote into lastWrittenRef, so the watcher event that write triggers
+      // is recognised as an echo and dropped.
       apiRef.current.updateScene({
         elements: parsed.elements,
         captureUpdate: CaptureUpdateAction.IMMEDIATELY,
@@ -267,6 +278,16 @@ function App() {
           setActiveName(resolved);
           activeNameRef.current = resolved;
           localStorage.setItem(LAST_ACTIVE_KEY, resolved);
+          // Re-key alongside activeNameRef so the two can never drift apart:
+          // the rename's own filesystem event otherwise looks unrecognised
+          // under the new name and reads as a spurious external change.
+          if (lastWrittenRef.current.has(oldName)) {
+            lastWrittenRef.current.set(
+              resolved,
+              lastWrittenRef.current.get(oldName),
+            );
+            lastWrittenRef.current.delete(oldName);
+          }
         }
         await refreshList();
       } catch (e) {
@@ -281,6 +302,7 @@ function App() {
       try {
         // Drop any queued write first, or the debounce could recreate the file.
         if (name === activeNameRef.current) discardPendingSave();
+        lastWrittenRef.current.delete(name);
         await deleteDrawing(name);
         let list = await listDrawings();
         if (name === activeNameRef.current) {
