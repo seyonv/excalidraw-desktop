@@ -202,9 +202,6 @@ fn drawing_names(paths: &[PathBuf]) -> Vec<String> {
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             continue;
         };
-        if stem.starts_with('.') {
-            continue;
-        }
         if seen.insert(stem.to_string()) {
             names.push(stem.to_string());
         }
@@ -224,7 +221,10 @@ fn open_request_name(dir: &Path) -> Option<String> {
 /// Watches the library directory and forwards changes to the frontend.
 /// Debounced, because a single save produces several filesystem events.
 fn spawn_watcher(app: tauri::AppHandle) {
-    let Ok(dir) = library_dir() else { return };
+    let Ok(dir) = library_dir() else {
+        eprintln!("could not resolve the library directory for the watcher");
+        return;
+    };
     std::thread::spawn(move || {
         let (tx, rx) = channel();
         let mut watcher = match notify::recommended_watcher(tx) {
@@ -477,6 +477,16 @@ mod tests {
             dir.join("Auth flow.excalidraw"), // duplicate event, common with editors
         ];
         assert_eq!(drawing_names(&paths), vec!["Auth flow".to_string()]);
+    }
+
+    /// Hidden by extension, not by leading dot: `.open-request` is dropped
+    /// because it has no `.excalidraw` extension, but a drawing that happens
+    /// to be named `.hidden` is a real drawing and must be reported.
+    #[test]
+    fn drawing_names_hides_by_extension_not_by_leading_dot() {
+        let dir = PathBuf::from("/tmp/lib");
+        let paths = vec![dir.join(".hidden.excalidraw"), dir.join(".open-request")];
+        assert_eq!(drawing_names(&paths), vec![".hidden".to_string()]);
     }
 
     #[test]
