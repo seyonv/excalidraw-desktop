@@ -1,12 +1,18 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::channel;
 use std::sync::Mutex;
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, UNIX_EPOCH};
 
+use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
+use tauri::Emitter;
 use tauri::Manager;
 
 const EXT: &str = "excalidraw";
+const OPEN_REQUEST_FILE: &str = ".open-request";
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(150);
 
 /// A `.excalidraw` passed on the command line (file association), consumed once
 /// by the frontend on startup.
@@ -184,6 +190,83 @@ fn get_pending_file(state: tauri::State<'_, PendingFile>) -> Result<Option<Pendi
     Ok(data.take())
 }
 
+/// Maps raw watcher paths to the drawing names the frontend cares about,
+/// dropping control files, non-drawings, and duplicate events.
+fn drawing_names(paths: &[PathBuf]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut names = Vec::new();
+    for path in paths {
+        if path.extension().and_then(|e| e.to_str()) != Some(EXT) {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if stem.starts_with('.') {
+            continue;
+        }
+        if seen.insert(stem.to_string()) {
+            names.push(stem.to_string());
+        }
+    }
+    names
+}
+
+/// Reads and removes the MCP server's open request, if there is one.
+fn open_request_name(dir: &Path) -> Option<String> {
+    let path = dir.join(OPEN_REQUEST_FILE);
+    let contents = fs::read_to_string(&path).ok()?;
+    let _ = fs::remove_file(&path);
+    let value: serde_json::Value = serde_json::from_str(&contents).ok()?;
+    value.get("name")?.as_str().map(|s| s.to_string())
+}
+
+/// Watches the library directory and forwards changes to the frontend.
+/// Debounced, because a single save produces several filesystem events.
+fn spawn_watcher(app: tauri::AppHandle) {
+    let Ok(dir) = library_dir() else { return };
+    std::thread::spawn(move || {
+        let (tx, rx) = channel();
+        let mut watcher = match notify::recommended_watcher(tx) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("could not start the library watcher: {e}");
+                return;
+            }
+        };
+        if let Err(e) = watcher.watch(&dir, RecursiveMode::NonRecursive) {
+            eprintln!("could not watch {}: {e}", dir.display());
+            return;
+        }
+
+        loop {
+            // Block for the first event, then drain whatever arrives inside
+            // the debounce window so one save is one emit.
+            let Ok(first) = rx.recv() else { return };
+            let mut paths: Vec<PathBuf> = first.map(|e| e.paths).unwrap_or_default();
+            while let Ok(next) = rx.recv_timeout(WATCH_DEBOUNCE) {
+                if let Ok(event) = next {
+                    paths.extend(event.paths);
+                }
+            }
+
+            if let Some(name) = open_request_name(&dir) {
+                let _ = app.emit("open-request", serde_json::json!({ "name": name }));
+            }
+            let names = drawing_names(&paths);
+            if !names.is_empty() {
+                let _ = app.emit("library-changed", serde_json::json!({ "names": names }));
+            }
+        }
+    });
+}
+
+/// Lets the frontend pick up a request written before the app was running.
+#[tauri::command]
+fn take_open_request() -> Result<Option<String>, String> {
+    Ok(open_request_name(&library_dir()?))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -202,10 +285,12 @@ pub fn run() {
                     *state.0.lock().unwrap() = Some(PendingOpen { name, contents });
                 }
             }
+            spawn_watcher(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_pending_file,
+            take_open_request,
             list_drawings,
             read_drawing,
             write_drawing,
@@ -379,6 +464,39 @@ mod tests {
         assert!(!list_drawings().unwrap().iter().any(|d| d.name == renamed));
 
         std::env::remove_var("EXCALIDRAW_LIBRARY_DIR");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn drawing_names_keeps_only_library_drawings() {
+        let dir = PathBuf::from("/tmp/lib");
+        let paths = vec![
+            dir.join("Auth flow.excalidraw"),
+            dir.join("notes.txt"),
+            dir.join(".open-request"),
+            dir.join("Auth flow.excalidraw"), // duplicate event, common with editors
+        ];
+        assert_eq!(drawing_names(&paths), vec!["Auth flow".to_string()]);
+    }
+
+    #[test]
+    fn open_request_is_read_once_and_removed() {
+        let dir = std::env::temp_dir().join(format!("excalidraw-req-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(OPEN_REQUEST_FILE);
+
+        assert_eq!(open_request_name(&dir), None);
+
+        fs::write(&path, r#"{"name":"Auth flow","at":1}"#).unwrap();
+        assert_eq!(open_request_name(&dir), Some("Auth flow".to_string()));
+        assert!(!path.exists(), "the request must be consumed");
+        assert_eq!(open_request_name(&dir), None);
+
+        // Malformed input is ignored, and still cleaned up.
+        fs::write(&path, "not json").unwrap();
+        assert_eq!(open_request_name(&dir), None);
+        assert!(!path.exists());
+
         let _ = fs::remove_dir_all(&dir);
     }
 }
