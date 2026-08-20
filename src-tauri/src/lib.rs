@@ -14,8 +14,21 @@ const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
 /// An open-request older than this is ignored, so a request written long ago
 /// (the machine slept, the app crashed before consuming it, ...) can't hijack
-/// the next cold launch with a stale target.
-const OPEN_REQUEST_MAX_AGE: Duration = Duration::from_secs(5 * 60);
+/// a much later cold launch with a stale target.
+///
+/// Deliberately generous: the cold-launch path this file exists for is the
+/// MCP server writing the request and then spawning the `EXCALIDRAW_APP`
+/// launcher, which (via the default `open -a "Excalidraw Dev"` applet, and
+/// for anyone running the dev build) opens a terminal and runs
+/// `npm run tauri dev` — a cold `cargo build` of the Tauri debug binary
+/// routinely takes well over five minutes on a first run or after a
+/// dependency bump. A short window would silently drop the very request this
+/// file is for: written at T, discarded as "stale" by the time bootstrap
+/// finally runs at T+8min, with no error. 30 minutes comfortably covers a
+/// cold build plus app startup while still discarding a request left over
+/// from a previous day or session. Do not tighten this without accounting
+/// for that build time.
+const OPEN_REQUEST_MAX_AGE: Duration = Duration::from_secs(30 * 60);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(150);
 
 /// A `.excalidraw` passed on the command line (file association), consumed once
@@ -543,11 +556,31 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join(OPEN_REQUEST_FILE);
 
-        // Written well outside OPEN_REQUEST_MAX_AGE: must be ignored, but
-        // still consumed so it can't be re-read on the next event.
+        // `at: 1` is 1970-01-01 — many hours (in fact decades) outside
+        // OPEN_REQUEST_MAX_AGE, unambiguously stale regardless of exactly
+        // where the cutoff sits. Must be ignored, but still consumed so it
+        // can't be re-read on the next event.
         fs::write(&path, r#"{"name":"Auth flow","at":1}"#).unwrap();
         assert_eq!(open_request_name(&dir), None);
         assert!(!path.exists(), "a stale request must still be consumed");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn open_request_accepts_a_timestamp_just_under_the_window() {
+        // Pins the other side of the OPEN_REQUEST_MAX_AGE boundary: a request
+        // written well within the window — comfortably covering a cold
+        // `cargo build` of the Tauri debug binary plus app startup — must
+        // still be honoured, not just a request written "now".
+        let dir = std::env::temp_dir().join(format!("excalidraw-req-fresh-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(OPEN_REQUEST_FILE);
+
+        let almost_expired = SystemTime::now() - (OPEN_REQUEST_MAX_AGE - Duration::from_secs(30));
+        let at_ms = almost_expired.duration_since(UNIX_EPOCH).unwrap().as_millis();
+        fs::write(&path, format!(r#"{{"name":"Auth flow","at":{at_ms}}}"#)).unwrap();
+        assert_eq!(open_request_name(&dir), Some("Auth flow".to_string()));
 
         let _ = fs::remove_dir_all(&dir);
     }
