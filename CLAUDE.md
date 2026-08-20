@@ -25,6 +25,9 @@ src/lib/drawings.js       the ONLY module that calls invoke(); all Rust access f
 src/components/Sidebar.jsx presentational — it raises events, it never mutates the library
 src/App.jsx               owns library state, active drawing, and the autosave lifecycle
 src-tauri/src/lib.rs      file operations + name sanitising + tests
+mcp/server.js             MCP server wiring: registers draw, edit, list_drawings,
+                          describe_scene, rename_drawing, delete_drawing, open_drawing
+mcp/lib/*.js              all MCP behaviour — server.js stays wiring-only
 ```
 
 Keep these boundaries. If the sidebar starts calling `invoke` directly, or `App.jsx`
@@ -42,6 +45,14 @@ starts formatting filenames, the seams have eroded.
   name to a path on the JS side.
 - **Never bump `sceneKey` on rename.** It remounts Excalidraw and throws away the
   user's scroll and zoom. It should change only when a genuinely different scene loads.
+- **The MCP server must never print to stdout.** It speaks JSON-RPC there; a
+  stray `console.log` corrupts the protocol. Use `console.error`.
+- **Echo suppression is load-bearing.** `App.jsx` remembers the exact bytes it
+  last wrote per drawing and drops watcher events that match. Without it,
+  autosave and the watcher chase each other forever.
+- **`sanitize()` is mirrored in `mcp/lib/sanitize.js`** and pinned by
+  `mcp/fixtures/sanitize-cases.json`, which both test suites read. Change one,
+  and the other's test fails — that is the point.
 
 ## Gotchas in this repo
 
@@ -60,6 +71,7 @@ npm install
 npm run tauri dev             # run with hot reload
 npm run build                 # frontend only
 cd src-tauri && cargo test    # library layer tests
+npm run test:mcp              # MCP server tests
 ```
 
 This project uses **npm**, not pnpm.

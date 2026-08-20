@@ -33,6 +33,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 | **Saving**                       | Manual export                | Autosaves as you draw                                |
 | **Works offline**                | Needs the page loaded        | Fully native, no network at all                      |
 | **Opening a `.excalidraw` file** | Drag into the browser        | Double-click it in Finder / Explorer                 |
+| **Driving it from an AI agent**  | Not possible                 | MCP server — Claude Code can draw and edit on the canvas |
 
 ### The sidebar
 
@@ -67,6 +68,31 @@ Set `EXCALIDRAW_LIBRARY_DIR` to keep the library somewhere other than `~/Documen
 
 > **Upgrading from an older version?** Your existing single scene is imported automatically as a drawing called _My Drawing_ the first time you launch. Nothing is lost.
 
+## Draw from Claude Code
+
+The app ships an MCP server, so Claude Code can create and edit drawings in your
+library from any project on your machine — and you watch them appear on the
+canvas as they are made.
+
+```bash
+claude mcp add --scope user excalidraw -- node /path/to/this/repo/mcp/server.js
+```
+
+Then just ask:
+
+> Create an excalidraw drawing with three boxes: Client, API, Postgres — arrows
+> down the chain, label the first one "POST /login"
+
+Drawings are written straight to your library folder, so they show up in the
+sidebar whether or not the app is running. If it is running, the canvas updates
+in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude did.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `EXCALIDRAW_MCP_FOCUS` | `focus` | `focus` brings the app forward, `switch` changes the drawing without stealing focus, `off` writes files only |
+| `EXCALIDRAW_APP` | `open -a "Excalidraw Dev"` | How to launch the app |
+| `EXCALIDRAW_LIBRARY_DIR` | `~/Documents/Excalidraw` | Where drawings live |
+
 ## Installation
 
 Download the latest build for your platform from [Releases](../../releases).
@@ -88,6 +114,7 @@ npm install
 npm run tauri dev      # run the app with hot reload
 npm run tauri build    # produce installers for the current platform
 cd src-tauri && cargo test   # test the file-library layer
+npm run test:mcp       # test the MCP server
 ```
 
 ### How it's put together
@@ -98,6 +125,7 @@ src/
 ├── components/Sidebar.jsx   # the drawing list (presentational only)
 └── lib/drawings.js          # the single place that talks to Rust
 src-tauri/src/lib.rs         # file operations, name sanitising, tests
+mcp/server.js                 # MCP server: draw, edit, list, describe, rename, delete, open
 ```
 
 The frontend never touches the filesystem directly. Every path is re-resolved inside the library directory on the Rust side, so a drawing name can't escape the folder no matter what it contains.
