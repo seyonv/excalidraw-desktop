@@ -219,6 +219,9 @@ export function createServer() {
     { title: "Delete a drawing", inputSchema: { name: z.string() } },
     async ({ name }) => {
       try {
+        // Deliberately a no-op success when `name` does not exist, mirroring
+        // Rust's delete_drawing (src-tauri/src/lib.rs), which returns Ok(())
+        // for an absent path — idempotent delete so a retried delete never errors.
         await library.deleteDrawing(name);
         return ok({ deleted: name });
       } catch (e) {

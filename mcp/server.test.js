@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,6 +17,12 @@ async function connect() {
   const client = new Client({ name: "test", version: "0" }, { capabilities: {} });
   await Promise.all([createServer().connect(serverTransport), client.connect(clientTransport)]);
   return client;
+}
+
+/** Reads a drawing straight off disk — bypasses describe_scene's summarising,
+ * which deliberately hides bound labels and binding internals. */
+function readRaw(name) {
+  return JSON.parse(readFileSync(join(dir, `${name}.excalidraw`), "utf8"));
 }
 
 const json = (result) => JSON.parse(result.content[0].text);
@@ -167,6 +173,164 @@ test("reading a drawing that does not exist is an error, not a crash", async () 
   const client = await connect();
   const result = await client.callTool({
     name: "describe_scene", arguments: { name: "Never Existed" },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("deleting a drawing that does not exist succeeds (idempotent, like the Rust command)", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "delete_drawing", arguments: { name: "Never Existed Either" },
+  });
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(json(result), { deleted: "Never Existed Either" });
+});
+
+test("removing a shape nulls the arrow's binding to it without disturbing the surviving shape", async () => {
+  const client = await connect();
+  await client.callTool({
+    name: "draw",
+    arguments: { name: "Bound", nodes: ["A", "B"], edges: [["A", "B"]] },
+  });
+  const before = readRaw("Bound");
+  const labelText = (shapeId) =>
+    before.elements.find((el) => el.type === "text" && el.containerId === shapeId)?.text;
+  const shapeA = before.elements.find((el) => el.type === "rectangle" && labelText(el.id) === "A");
+  const shapeB = before.elements.find((el) => el.type === "rectangle" && labelText(el.id) === "B");
+  const arrow = before.elements.find((el) => el.type === "arrow");
+  assert.equal(arrow.startBinding.elementId, shapeA.id);
+  assert.equal(arrow.endBinding.elementId, shapeB.id);
+
+  await client.callTool({ name: "edit", arguments: { name: "Bound", remove: [shapeA.id] } });
+
+  const after = readRaw("Bound");
+  assert.ok(!after.elements.some((el) => el.id === shapeA.id), "shape A is gone");
+  assert.ok(!after.elements.some((el) => el.containerId === shapeA.id), "shape A's label is gone");
+
+  const afterArrow = after.elements.find((el) => el.id === arrow.id);
+  assert.ok(afterArrow, "arrow itself survives — only shape A was removed");
+  assert.equal(afterArrow.startBinding, null, "the dangling end is nulled, not left pointing at nothing");
+  assert.equal(afterArrow.endBinding.elementId, shapeB.id, "the surviving end is untouched");
+
+  const afterB = after.elements.find((el) => el.id === shapeB.id);
+  assert.ok(
+    afterB.boundElements.some((b) => b.id === arrow.id),
+    "the surviving shape still knows about the arrow, since the arrow itself is still valid",
+  );
+});
+
+test("removing an arrow strips its id from both connected shapes' boundElements", async () => {
+  const client = await connect();
+  await client.callTool({
+    name: "draw",
+    arguments: { name: "Wired", nodes: ["A", "B"], edges: [["A", "B"]] },
+  });
+  const before = readRaw("Wired");
+  const arrow = before.elements.find((el) => el.type === "arrow");
+  const shapes = before.elements.filter((el) => el.type === "rectangle");
+  assert.ok(shapes.every((s) => s.boundElements.some((b) => b.id === arrow.id)));
+
+  await client.callTool({ name: "edit", arguments: { name: "Wired", remove: [arrow.id] } });
+
+  const after = readRaw("Wired");
+  assert.ok(!after.elements.some((el) => el.id === arrow.id), "arrow is gone");
+  for (const shape of after.elements.filter((el) => el.type === "rectangle")) {
+    assert.ok(
+      !shape.boundElements.some((b) => b.id === arrow.id),
+      `${shape.id} no longer references the deleted arrow`,
+    );
+  }
+});
+
+test("append onto negative coordinates lands below and stays finite", async () => {
+  const client = await connect();
+  await client.callTool({ name: "draw", arguments: { name: "Underground", nodes: ["A"] } });
+  const [box] = json(await client.callTool({
+    name: "describe_scene", arguments: { name: "Underground" },
+  }));
+  await client.callTool({
+    name: "edit",
+    arguments: { name: "Underground", move: [{ id: box.id, x: -500, y: -800 }] },
+  });
+  const before = readRaw("Underground");
+  const bottom = Math.max(
+    ...before.elements.filter((el) => !el.isDeleted).map((el) => el.y + el.height),
+  );
+
+  await client.callTool({
+    name: "draw", arguments: { name: "Underground", nodes: ["B"], mode: "append" },
+  });
+
+  const after = readRaw("Underground");
+  for (const el of after.elements) {
+    assert.ok(Number.isFinite(el.x), `${el.id}.x is finite`);
+    assert.ok(Number.isFinite(el.y), `${el.id}.y is finite`);
+  }
+  const added = after.elements.find((el) => el.text === "B");
+  assert.ok(added.y >= bottom, "appended content sits below the existing (negative) content");
+});
+
+test("draw rejects a malformed argument instead of throwing", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "draw", arguments: { name: 123, nodes: "not-an-array" },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("edit against a drawing that does not exist is an error", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "edit", arguments: { name: "Never Existed", move: [{ id: "x", x: 1, y: 1 }] },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("edit rejects a malformed argument instead of throwing", async () => {
+  const client = await connect();
+  await client.callTool({ name: "draw", arguments: { name: "Editable", nodes: ["A"] } });
+  const result = await client.callTool({
+    name: "edit", arguments: { name: "Editable", move: [{ id: "x", x: "bad", y: 1 }] },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("rename_drawing against a drawing that does not exist is an error", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "rename_drawing", arguments: { name: "Never Existed", newName: "Whatever" },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("rename_drawing rejects a malformed argument instead of throwing", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "rename_drawing", arguments: { name: "Whatever", newName: 42 },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("open_drawing against a drawing that does not exist is an error", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "open_drawing", arguments: { name: "Never Existed" },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("open_drawing rejects a malformed argument instead of throwing", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "open_drawing", arguments: { name: 42 },
+  });
+  assert.equal(result.isError, true);
+});
+
+test("delete_drawing rejects a malformed argument instead of throwing", async () => {
+  const client = await connect();
+  const result = await client.callTool({
+    name: "delete_drawing", arguments: { name: 42 },
   });
   assert.equal(result.isError, true);
 });

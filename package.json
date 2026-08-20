@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:mcp": "node --test mcp/"
+    "test:mcp": "node --test 'mcp/**/*.test.js'"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
