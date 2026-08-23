@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.gstack/
+
+# Brainstorming companion scratch (mockups, prototypes)
+.superpowers/

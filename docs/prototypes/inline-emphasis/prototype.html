@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inline emphasis — prototype v3</title>
+<style>
+  @font-face { font-family:"Excalifont"; src:url("/files/excalifont.woff2") format("woff2"); font-display:swap; }
+  :root { --ink:#1e1e1e; --paper:#fbfaf8; --line:#e3e0da; --muted:#6b6862; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:14px; line-height:1.5; }
+  header { padding:20px 28px 14px; border-bottom:1px solid var(--line); }
+  h1 { font-size:17px; margin:0 0 4px; font-weight:600; }
+  .sub { color:var(--muted); font-size:13px; margin:0; }
+  main { display:grid; grid-template-columns:1fr 330px; min-height:calc(100vh - 74px); }
+  .stage { padding:28px; }
+  aside { border-left:1px solid var(--line); padding:20px 22px; background:#fff; }
+
+  .canvas { background:#fff; border:1px solid var(--line); border-radius:8px; min-height:420px;
+            padding:34px 38px; position:relative;
+            background-image:radial-gradient(circle,#eceae6 1px,transparent 1px); background-size:22px 22px; }
+  /* padding-right reserves room for a boxed run's stroke + padding, which the
+     browser does not account for when it chooses a wrap point. */
+  #editor { font-family:"Excalifont","Comic Sans MS",cursive; font-size:20px; line-height:1.6;
+            color:var(--ink); outline:none; max-width:600px; white-space:pre-wrap;
+            padding-right:8px; }
+  #editor .blk { min-height:1.6em; }
+
+  .c-blue{color:#1971c2}.c-red{color:#e03131}.c-green{color:#2f9e44}.c-orange{color:#f08c00}
+  .hl { background:linear-gradient(#ffec99,#ffec99); -webkit-box-decoration-break:clone;
+        box-decoration-break:clone; padding:1px 3px; border-radius:2px; }
+  .ul { border-bottom:2px solid currentColor; padding-bottom:1px; }
+  /* A box implies one enclosed thing, so a boxed run never breaks across lines —
+     it moves to the next line whole. `.too-wide` is the measured escape hatch for
+     a range that is wider than a line and therefore cannot stay intact. */
+  .box { border:1.5px solid currentColor; border-radius:4px; padding:1px 5px;
+         white-space:nowrap; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+  /* Browsers do not reserve cloned inline padding when choosing a wrap point, so a
+     wrapped box would overshoot the line. Drop the horizontal padding in that case.
+     (Prototype-only concern: the real implementation owns its own line breaker.) */
+  .box.too-wide { white-space:pre-wrap; padding-left:0; padding-right:0; }
+  .breakout { margin:14px 0 14px 30px; padding-left:12px; border-left:3px solid currentColor; }
+
+  #bubble { position:absolute; display:none; z-index:20; background:#2b2926; color:#fff;
+            border-radius:9px; padding:5px; box-shadow:0 6px 20px rgba(0,0,0,.22); align-items:center; gap:2px; }
+  #bubble.on { display:flex; }
+  #bubble button { background:transparent; border:0; color:#fff; cursor:pointer; border-radius:6px;
+                   padding:5px 7px; font-size:13px; line-height:1; display:flex; align-items:center; gap:5px; }
+  #bubble button:hover { background:#ffffff22; }
+  #bubble button.active { background:#ffffff2e; box-shadow:inset 0 0 0 1.5px #ffffff88; }
+  #bubble button.active .key:after { content:" · off"; }
+  #bubble .key { font-size:9px; opacity:.55; }
+  #bubble .sep { width:1px; height:18px; background:#ffffff26; margin:0 3px; }
+  #bubble button[disabled] { opacity:.28; cursor:default; }
+  .dot { width:13px; height:13px; border-radius:50%; display:inline-block; }
+  .dot.plain { background:#1e1e1e; box-shadow:inset 0 0 0 1px #ffffff55; }
+
+  #sticky { position:absolute; display:none; z-index:20; background:#2b2926; color:#fff; font-size:11px;
+            border-radius:20px; padding:3px 9px; box-shadow:0 3px 10px rgba(0,0,0,.2); }
+  #sticky.on { display:block; }
+
+  aside h2 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+             margin:0 0 10px; font-weight:600; }
+  .keys { margin:0 0 24px; }
+  .keyrow { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0;
+            border-bottom:1px dashed var(--line); }
+  .keyrow:last-child { border-bottom:0; }
+  .keyrow span { color:var(--muted); font-size:12px; }
+  kbd { font-family:ui-monospace,Menlo,monospace; font-size:11px; background:#f3f1ed;
+        border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:1px 5px; color:#413e39; }
+  #model { font-family:ui-monospace,Menlo,monospace; font-size:11px; background:#f7f6f3;
+           border:1px solid var(--line); border-radius:6px; padding:10px; white-space:pre-wrap;
+           word-break:break-word; max-height:240px; overflow:auto; color:#413e39; }
+  .note { font-size:12px; color:var(--muted); margin-top:12px; }
+  #selftest { font-size:12px; border-radius:7px; padding:10px 12px; margin-bottom:16px; line-height:1.5; }
+  #selftest.pass { background:#eef7ee; border:1px solid #cfe6cf; }
+  #selftest.fail { background:#fdeeee; border:1px solid #f0c9c9; }
+  #selftest ul { margin:6px 0 0; padding-left:16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Inline emphasis — prototype v3</h1>
+  <p class="sub">Fully controlled editor: every keystroke goes through the model, so line breaks and selections across them can't corrupt anything. Self-tests run on load.</p>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="canvas">
+      <div id="editor" contenteditable="true" spellcheck="false"></div>
+      <div id="bubble">
+        <button data-act="plain" title="Back to plain"><i class="dot plain"></i><span class="key">⌘\</span></button>
+        <div class="sep"></div>
+        <button data-act="c-blue" title="Blue"><i class="dot" style="background:#1971c2"></i><span class="key">⌘B</span></button>
+        <button data-act="c-red" title="Red"><i class="dot" style="background:#e03131"></i><span class="key">⌘1</span></button>
+        <button data-act="c-green" title="Green"><i class="dot" style="background:#2f9e44"></i><span class="key">⌘2</span></button>
+        <button data-act="c-orange" title="Orange"><i class="dot" style="background:#f08c00"></i><span class="key">⌘3</span></button>
+        <div class="sep"></div>
+        <button data-act="hl" title="Highlight">▮<span class="key">⌘H</span></button>
+        <button data-act="ul" title="Underline">U̲<span class="key">⌘U</span></button>
+        <button data-act="box" title="Box">▭<span class="key">⌘E</span></button>
+        <button data-act="breakout" title="Break out">⏎<span class="key">⌘⇧B</span></button>
+      </div>
+      <div id="sticky"></div>
+    </div>
+    <p class="note" style="max-width:600px">HTML fakes the canvas so the interaction is real even though the rendering isn't.</p>
+  </div>
+
+  <aside>
+    <div id="selftest">running…</div>
+
+    <h2>Shortcuts</h2>
+    <div class="keys">
+      <div class="keyrow"><span>Plain — strip everything</span><kbd>⌘\</kbd></div>
+      <div class="keyrow"><span>Blue (toggle)</span><kbd>⌘B</kbd></div>
+      <div class="keyrow"><span>Red / green / orange</span><kbd>⌘1 ⌘2 ⌘3</kbd></div>
+      <div class="keyrow"><span>Highlight</span><kbd>⌘H</kbd></div>
+      <div class="keyrow"><span>Underline</span><kbd>⌘U</kbd></div>
+      <div class="keyrow"><span>Box</span><kbd>⌘E</kbd></div>
+      <div class="keyrow"><span>Break out</span><kbd>⌘⇧B</kbd></div>
+      <div class="keyrow"><span>Undo / redo</span><kbd>⌘Z ⌘⇧Z</kbd></div>
+      <div class="keyrow"><span>Cancel sticky mode</span><kbd>esc</kbd></div>
+    </div>
+
+    <h2>Markdown triggers</h2>
+    <div class="keys">
+      <div class="keyrow"><span>Blue</span><kbd>**text**</kbd></div>
+      <div class="keyrow"><span>Highlight</span><kbd>==text==</kbd></div>
+      <div class="keyrow"><span>Underline</span><kbd>__text__</kbd></div>
+      <div class="keyrow"><span>Box</span><kbd>[[text]]</kbd></div>
+    </div>
+
+    <h2>Underlying model</h2>
+    <div id="model"></div>
+    <p class="note">This is <code>customData.richText</code>: flat runs, no nesting.</p>
+  </aside>
+</main>
+
+<script>
+/* =======================================================================
+   MODEL — pure functions, no DOM. Everything below the editor is built on
+   these, and the self-tests exercise them directly.
+   doc = [ { type:"paragraph"|"breakout", runs:[ {text, color?, highlight?, underline?, box?} ] } ]
+   Offsets run over the concatenation of all run text, with ONE implicit
+   separator character between adjacent blocks.
+   ======================================================================= */
+const RT = (() => {
+  const COLOURS = { "c-blue":"#1971c2", "c-red":"#e03131", "c-green":"#2f9e44", "c-orange":"#f08c00" };
+  const MARKS = { hl:"highlight", ul:"underline", box:"box" };
+
+  const clone = (doc) => doc.map(b => ({ type:b.type, runs:b.runs.map(r => ({ ...r })) }));
+  const styleKey = (r) => [r.color||"", r.highlight?1:0, r.underline?1:0, r.box?1:0].join("|");
+  const blockText = (b) => b.runs.map(r => r.text).join("");
+  const docText = (doc) => doc.map(blockText).join("\n");
+
+  function blockSpans(doc) {
+    const out = []; let pos = 0;
+    doc.forEach((b, i) => {
+      const len = blockText(b).length;
+      out.push({ index:i, block:b, start:pos, end:pos + len });
+      pos += len + 1;                       // +1 for the implicit separator
+    });
+    return out;
+  }
+
+  function tidy(block) {
+    block.runs = block.runs
+      .filter(r => r.text.length)
+      .reduce((acc, r) => {
+        const last = acc[acc.length-1];
+        if (last && styleKey(last) === styleKey(r)) last.text += r.text;
+        else acc.push({ ...r });
+        return acc;
+      }, []);
+    if (!block.runs.length) block.runs = [{ text:"" }];
+    return block;
+  }
+
+  /** Cuts a block's runs at a local offset, returning [before, after]. */
+  function splitRuns(runs, at) {
+    const before = [], after = []; let pos = 0;
+    runs.forEach(r => {
+      const s = pos, e = pos + r.text.length; pos = e;
+      if (e <= at) { before.push({ ...r }); return; }
+      if (s >= at) { after.push({ ...r }); return; }
+      before.push({ ...r, text:r.text.slice(0, at - s) });
+      after.push({ ...r, text:r.text.slice(at - s) });
+    });
+    return [before, after];
+  }
+
+  function styleAt(doc, offset) {
+    for (const span of blockSpans(doc)) {
+      if (offset < span.start || offset > span.end) continue;
+      let pos = span.start;
+      let carry = null;
+      for (const r of span.block.runs) {
+        const e = pos + r.text.length;
+        if (offset > pos && offset <= e) carry = r;
+        pos = e;
+      }
+      if (carry) { const { text, ...style } = carry; return style; }
+      return {};
+    }
+    return {};
+  }
+
+  function insertText(doc, at, text, style) {
+    const next = clone(doc);
+    const spans = blockSpans(next);
+    let target = spans.find(s => at >= s.start && at <= s.end) || spans[spans.length-1];
+    const local = Math.max(0, Math.min(at - target.start, blockText(target.block).length));
+    const [before, after] = splitRuns(target.block.runs, local);
+    const inherited = style !== undefined ? style : styleAt(doc, at);
+    target.block.runs = [...before, { text, ...inherited }, ...after];
+    tidy(target.block);
+    return next;
+  }
+
+  function deleteRange(doc, start, end) {
+    if (start === end) return clone(doc);
+    const next = clone(doc);
+    const spans = blockSpans(next);
+    const touched = spans.filter(s => s.end >= start && s.start <= end);
+    if (!touched.length) return next;
+
+    const first = touched[0], last = touched[touched.length-1];
+    const headLocal = Math.max(0, start - first.start);
+    const tailLocal = Math.min(blockText(last.block).length, Math.max(0, end - last.start));
+    const head = splitRuns(first.block.runs, headLocal)[0];
+    const tail = splitRuns(last.block.runs, tailLocal)[1];
+
+    first.block.runs = [...head, ...tail];
+    tidy(first.block);
+    // drop every block the range swallowed after the first
+    const removeFrom = first.index + 1, removeTo = last.index;
+    if (removeTo >= removeFrom) next.splice(removeFrom, removeTo - removeFrom + 1);
+    return next;
+  }
+
+  function mutate(run, act, on) {
+    if (act === "plain") { delete run.color; delete run.highlight; delete run.underline; delete run.box; return; }
+    if (act in COLOURS) { on ? (run.color = COLOURS[act]) : delete run.color; return; }
+    const key = MARKS[act];
+    if (key) on ? (run[key] = true) : delete run[key];
+  }
+
+  function runsInRange(doc, start, end) {
+    const hits = [];
+    blockSpans(doc).forEach(span => {
+      let pos = span.start;
+      span.block.runs.forEach(r => {
+        const s = pos, e = pos + r.text.length; pos = e;
+        if (e > start && s < end && r.text.length) hits.push(r);
+      });
+    });
+    return hits;
+  }
+
+  function isApplied(doc, start, end, act) {
+    const hits = runsInRange(doc, start, end);
+    if (!hits.length) return false;
+    if (act in COLOURS) return hits.every(r => r.color === COLOURS[act]);
+    if (act in MARKS) return hits.every(r => r[MARKS[act]]);
+    return false;
+  }
+
+  function applyStyle(doc, start, end, act, on) {
+    if (start === end) return clone(doc);
+    const next = clone(doc);
+    blockSpans(next).forEach(span => {
+      if (span.end <= start || span.start >= end) return;
+      const localStart = Math.max(0, start - span.start);
+      const localEnd = Math.min(blockText(span.block).length, end - span.start);
+      const [head, rest] = splitRuns(span.block.runs, localStart);
+      const [mid, tail] = splitRuns(rest, localEnd - localStart);
+      mid.forEach(r => mutate(r, act, on));
+      span.block.runs = [...head, ...mid, ...tail];
+      tidy(span.block);
+    });
+    return next;
+  }
+
+  function breakout(doc, start, end) {
+    const next = [];
+    blockSpans(clone(doc)).forEach(span => {
+      const b = span.block;
+      if (span.end <= start || span.start >= end) { next.push(b); return; }
+      const localStart = Math.max(0, start - span.start);
+      const localEnd = Math.min(blockText(b).length, end - span.start);
+      const [head, rest] = splitRuns(b.runs, localStart);
+      const [mid, tail] = splitRuns(rest, localEnd - localStart);
+      const kind = b.type === "breakout" ? "paragraph" : "breakout";
+      if (head.length && head.some(r => r.text)) next.push(tidy({ type:b.type, runs:head }));
+      next.push(tidy({ type:kind, runs:mid }));
+      if (tail.length && tail.some(r => r.text)) next.push(tidy({ type:b.type, runs:tail }));
+    });
+    return next.length ? next : clone(doc);
+  }
+
+  const fromText = (text) => [{ type:"paragraph", runs:[{ text }] }];
+
+  return { COLOURS, MARKS, clone, styleKey, blockText, docText, blockSpans,
+           insertText, deleteRange, applyStyle, isApplied, runsInRange, breakout,
+           styleAt, fromText, tidy };
+})();
+
+/* =======================================================================
+   SELF-TESTS — the operations that broke in v2, pinned.
+   ======================================================================= */
+(function selfTest() {
+  const failures = [];
+  const check = (name, actual, expected) => {
+    const a = JSON.stringify(actual), e = JSON.stringify(expected);
+    if (a !== e) failures.push(`${name}: got ${a}, expected ${e}`);
+  };
+
+  const doc = RT.fromText("hello world");
+
+  check("insert mid", RT.docText(RT.insertText(doc, 5, "!")), "hello! world");
+  check("delete mid", RT.docText(RT.deleteRange(doc, 5, 11)), "hello");
+
+  // the v2 regression: a selection spanning a newline must not eat characters
+  const two = RT.fromText("line one\nline two");
+  check("newline survives", RT.docText(two), "line one\nline two");
+  check("delete across newline", RT.docText(RT.deleteRange(two, 4, 13)), "line two");
+  const styledAcross = RT.applyStyle(two, 4, 13, "c-blue", true);
+  check("style across newline keeps text", RT.docText(styledAcross), "line one\nline two");
+
+  // toggling must be exact and reversible
+  const blue = RT.applyStyle(doc, 0, 5, "c-blue", true);
+  check("colour applied", blue[0].runs.map(r => [r.text, r.color||null]),
+        [["hello", "#1971c2"], [" world", null]]);
+  check("toggle detects", RT.isApplied(blue, 0, 5, "c-blue"), true);
+  const unblue = RT.applyStyle(blue, 0, 5, "c-blue", false);
+  check("toggle off restores", unblue[0].runs.map(r => [r.text, r.color||null]), [["hello world", null]]);
+  check("toggle off merges runs", unblue[0].runs.length, 1);
+
+  // partial selection over a styled run
+  const half = RT.applyStyle(blue, 3, 8, "c-blue", false);
+  check("partial un-colour", half[0].runs.map(r => [r.text, r.color||null]),
+        [["hel", "#1971c2"], ["lo world", null]]);
+
+  // plain strips every mark at once
+  const loud = RT.applyStyle(RT.applyStyle(blue, 0, 5, "hl", true), 0, 5, "box", true);
+  const plain = RT.applyStyle(loud, 0, 11, "plain", true);
+  check("plain strips all", plain[0].runs, [{ text:"hello world" }]);
+
+  // breakout splits into three blocks and preserves every character
+  const bo = RT.breakout(doc, 6, 11);
+  check("breakout blocks", bo.map(b => b.type), ["paragraph", "breakout"]);
+  check("breakout keeps text", RT.docText(bo), "hello \nworld");
+
+  // insert at a boundary inherits the run to its left, not the one to its right
+  check("inherit left", RT.styleAt(blue, 5).color, "#1971c2");
+  check("no inherit past run", RT.styleAt(blue, 8).color, undefined);
+
+  const el = document.getElementById("selftest");
+  if (failures.length) {
+    el.className = "fail";
+    el.innerHTML = `<b>${failures.length} self-test failure(s)</b><ul>` +
+      failures.map(f => `<li>${f}</li>`).join("") + "</ul>";
+  } else {
+    el.className = "pass";
+    el.innerHTML = "<b>✓ 15 model self-tests pass</b><br>Covers the v2 regression: selections and edits spanning a line break, exact toggle-off, partial un-styling, and breakout round-trips.";
+  }
+})();
+
+/* =======================================================================
+   EDITOR — a controlled contenteditable. Every mutation goes through RT.
+   ======================================================================= */
+(function editor() {
+  const editorEl = document.getElementById("editor");
+  const bubble = document.getElementById("bubble");
+  const stickyEl = document.getElementById("sticky");
+  const modelEl = document.getElementById("model");
+  const canvas = document.querySelector(".canvas");
+
+  const CLS_FOR_COLOUR = Object.fromEntries(Object.entries(RT.COLOURS).map(([k,v]) => [v,k]));
+  const LABEL = { "c-blue":"blue","c-red":"red","c-green":"green","c-orange":"orange",
+                  hl:"highlight", ul:"underline", box:"box" };
+
+  let doc = RT.fromText("The migration ran clean on staging. Every write goes through the new path now. The old path is gone. We should ship on Tuesday and watch the error rate closely.");
+  let sel = { start:0, end:0 };
+  let sticky = new Set();
+  const undoStack = [], redoStack = [];
+
+  /* ---------- render ---------- */
+  function render() {
+    const frag = document.createDocumentFragment();
+    doc.forEach((block, bi) => {
+      const el = document.createElement("div");
+      el.className = "blk" + (block.type === "breakout" ? " breakout" : "");
+      el.dataset.block = bi;
+      block.runs.forEach((run, ri) => {
+        const cls = [];
+        if (run.color) cls.push(CLS_FOR_COLOUR[run.color]);
+        if (run.highlight) cls.push("hl");
+        if (run.underline) cls.push("ul");
+        if (run.box) cls.push("box");
+        const span = document.createElement("span");
+        span.className = cls.join(" ");
+        span.dataset.run = ri;
+        span.textContent = run.text;
+        el.appendChild(span);
+      });
+      frag.appendChild(el);
+    });
+    editorEl.replaceChildren(frag);
+    // A boxed run keeps itself on one line; only one wider than the line may wrap.
+    // Inline elements report scrollWidth 0, so measure the rendered rect.
+    const lineWidth = editorEl.getBoundingClientRect().width;
+    editorEl.querySelectorAll(".box").forEach(el => {
+      el.classList.remove("too-wide");
+      if (el.getBoundingClientRect().width > lineWidth) el.classList.add("too-wide");
+    });
+    modelEl.textContent = JSON.stringify(
+      doc.map(b => ({ type:b.type, runs:b.runs })), null, 1);
+  }
+
+  /* ---------- offsets <-> DOM ---------- */
+  function offsetToDom(offset) {
+    for (const span of RT.blockSpans(doc)) {
+      if (offset < span.start || offset > span.end) continue;
+      const blockEl = editorEl.querySelector(`[data-block="${span.index}"]`);
+      let pos = span.start;
+      for (let ri = 0; ri < span.block.runs.length; ri++) {
+        const run = span.block.runs[ri];
+        const e = pos + run.text.length;
+        if (offset <= e) {
+          const spanEl = blockEl.querySelector(`[data-run="${ri}"]`);
+          const node = spanEl.firstChild || spanEl.appendChild(document.createTextNode(""));
+          return { node, offset: offset - pos };
+        }
+        pos = e;
+      }
+      const lastEl = blockEl.lastElementChild;
+      const node = lastEl.firstChild || lastEl.appendChild(document.createTextNode(""));
+      return { node, offset: node.textContent.length };
+    }
+    return null;
+  }
+
+  function domToOffset(node, nodeOffset) {
+    const spanEl = node.nodeType === 3 ? node.parentElement : node;
+    const blockEl = spanEl.closest ? spanEl.closest("[data-block]") : null;
+    if (!blockEl) return 0;
+    const bi = Number(blockEl.dataset.block);
+    const span = RT.blockSpans(doc).find(s => s.index === bi);
+    if (!span) return 0;
+    let pos = span.start;
+    const ri = Number(spanEl.dataset ? spanEl.dataset.run : NaN);
+    for (let i = 0; i < span.block.runs.length; i++) {
+      if (i === ri) return pos + Math.min(nodeOffset, span.block.runs[i].text.length);
+      pos += span.block.runs[i].text.length;
+    }
+    return pos;
+  }
+
+  function readSelection() {
+    const s = window.getSelection();
+    if (!s.rangeCount || !editorEl.contains(s.anchorNode)) return;
+    const r = s.getRangeAt(0);
+    const a = domToOffset(r.startContainer, r.startOffset);
+    const b = domToOffset(r.endContainer, r.endOffset);
+    sel = { start:Math.min(a,b), end:Math.max(a,b) };
+  }
+
+  function writeSelection() {
+    const a = offsetToDom(sel.start), b = offsetToDom(sel.end);
+    if (!a || !b) return;
+    const r = document.createRange();
+    r.setStart(a.node, a.offset);
+    r.setEnd(b.node, b.offset);
+    const s = window.getSelection();
+    s.removeAllRanges(); s.addRange(r);
+  }
+
+  /* ---------- commit a new doc ---------- */
+  function commit(nextDoc, nextSel, { undoable = true } = {}) {
+    if (undoable) { undoStack.push({ doc:RT.clone(doc), sel:{ ...sel } }); redoStack.length = 0; }
+    doc = nextDoc;
+    sel = nextSel;
+    render();
+    writeSelection();
+    updateBubble();
+    showSticky();
+  }
+
+  /* ---------- styling ---------- */
+  function apply(act) {
+    readSelection();
+    if (sel.start === sel.end) { toggleSticky(act); return; }
+    if (act === "breakout") {
+      commit(RT.breakout(doc, sel.start, sel.end), { ...sel });
+      return;
+    }
+    const on = act === "plain" ? true : !RT.isApplied(doc, sel.start, sel.end, act);
+    commit(RT.applyStyle(doc, sel.start, sel.end, act, on), { ...sel });
+  }
+
+  function toggleSticky(act) {
+    if (act === "plain") { sticky.clear(); showSticky(); return; }
+    if (act === "breakout") return;
+    if (act in RT.COLOURS) [...sticky].forEach(s => { if (s in RT.COLOURS) sticky.delete(s); });
+    sticky.has(act) ? sticky.delete(act) : sticky.add(act);
+    showSticky();
+  }
+
+  function stickyStyle() {
+    const style = {};
+    sticky.forEach(act => {
+      if (act in RT.COLOURS) style.color = RT.COLOURS[act];
+      else if (act === "hl") style.highlight = true;
+      else if (act === "ul") style.underline = true;
+      else if (act === "box") style.box = true;
+    });
+    return style;
+  }
+
+  /* ---------- input handling (fully controlled) ---------- */
+  editorEl.addEventListener("beforeinput", (e) => {
+    readSelection();
+    const { start, end } = sel;
+
+    const insert = (text, style) => {
+      let next = doc, at = start;
+      if (start !== end) { next = RT.deleteRange(doc, start, end); at = start; }
+      next = RT.insertText(next, at, text, style);
+      commit(next, { start:at + text.length, end:at + text.length });
+    };
+
+    switch (e.inputType) {
+      case "insertText": {
+        e.preventDefault();
+        const style = sticky.size ? stickyStyle() : undefined;
+        insert(e.data, style);
+        runTriggers();
+        return;
+      }
+      case "insertParagraph":
+      case "insertLineBreak": {
+        e.preventDefault();
+        insert("\n", {});
+        return;
+      }
+      case "insertFromPaste": {
+        e.preventDefault();
+        const text = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
+        if (text) insert(text, undefined);
+        return;
+      }
+      case "deleteContentBackward":
+      case "deleteContentForward":
+      case "deleteByCut":
+      case "deleteWordBackward":
+      case "deleteWordForward": {
+        e.preventDefault();
+        let s = start, t = end;
+        if (s === t) {
+          const word = e.inputType.includes("Word");
+          if (e.inputType.includes("Backward")) {
+            if (s === 0) return;
+            s = word ? wordBoundary(start, -1) : start - 1;
+          } else {
+            if (t >= RT.docText(doc).length) return;
+            t = word ? wordBoundary(end, 1) : end + 1;
+          }
+        }
+        commit(RT.deleteRange(doc, s, t), { start:s, end:s });
+        return;
+      }
+      default:
+        e.preventDefault();      // refuse anything we don't model
+    }
+  });
+
+  function wordBoundary(from, dir) {
+    const text = RT.docText(doc);
+    let i = from;
+    if (dir < 0) { while (i > 0 && /\s/.test(text[i-1])) i--; while (i > 0 && !/\s/.test(text[i-1])) i--; }
+    else { const n = text.length; while (i < n && /\s/.test(text[i])) i++; while (i < n && !/\s/.test(text[i])) i++; }
+    return i;
+  }
+
+  /* ---------- markdown triggers ---------- */
+  const TRIGGERS = [
+    { re:/\*\*([^*]+)\*\*$/, act:"c-blue" },
+    { re:/==([^=]+)==$/,     act:"hl" },
+    { re:/__([^_]+)__$/,     act:"ul" },
+    { re:/\[\[([^\]]+)\]\]$/,act:"box" },
+  ];
+
+  function runTriggers() {
+    const text = RT.docText(doc);
+    const before = text.slice(0, sel.end);
+    for (const t of TRIGGERS) {
+      const m = before.match(t.re);
+      if (!m) continue;
+      const start = sel.end - m[0].length;
+      const marker = (m[0].length - m[1].length) / 2;
+      let next = RT.deleteRange(doc, start + m[1].length + marker, start + m[0].length); // closing
+      next = RT.deleteRange(next, start, start + marker);                                // opening
+      next = RT.applyStyle(next, start, start + m[1].length, t.act, true);
+      const caret = start + m[1].length;
+      commit(next, { start:caret, end:caret });
+      return;
+    }
+  }
+
+  /* ---------- bubble ---------- */
+  function updateBubble() {
+    const s = window.getSelection();
+    if (sel.start === sel.end || !s.rangeCount || !editorEl.contains(s.anchorNode)) {
+      bubble.classList.remove("on"); return;
+    }
+    let dirty = false;
+    bubble.querySelectorAll("button").forEach(btn => {
+      const act = btn.dataset.act;
+      if (act === "plain" || act === "breakout") return;
+      btn.classList.toggle("active", RT.isApplied(doc, sel.start, sel.end, act));
+    });
+    RT.runsInRange(doc, sel.start, sel.end).forEach(r => {
+      if (r.color || r.highlight || r.underline || r.box) dirty = true;
+    });
+    bubble.querySelector('[data-act="plain"]').disabled = !dirty;
+    bubble.classList.add("on");
+    const rect = s.getRangeAt(0).getBoundingClientRect();
+    const box = canvas.getBoundingClientRect();
+    bubble.style.left = Math.max(6, rect.left - box.left + rect.width/2 - bubble.offsetWidth/2) + "px";
+    bubble.style.top = (rect.top - box.top - bubble.offsetHeight - 9) + "px";
+  }
+
+  function showSticky() {
+    if (!sticky.size) { stickyEl.classList.remove("on"); return; }
+    stickyEl.textContent = [...sticky].map(a => LABEL[a]).join(" + ") + " — esc to stop";
+    const s = window.getSelection();
+    if (s.rangeCount) {
+      const rects = s.getRangeAt(0).getClientRects();
+      const rect = rects[0];
+      const box = canvas.getBoundingClientRect();
+      if (rect) { stickyEl.style.left = (rect.left - box.left) + "px";
+                  stickyEl.style.top = (rect.bottom - box.top + 6) + "px"; }
+    }
+    stickyEl.classList.add("on");
+  }
+
+  bubble.addEventListener("mousedown", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+    apply(btn.dataset.act);
+  });
+
+  document.addEventListener("selectionchange", () => {
+    if (!editorEl.contains(window.getSelection().anchorNode)) return;
+    readSelection(); updateBubble(); showSticky();
+  });
+
+  /* ---------- keyboard ---------- */
+  const KEYS = { b:"c-blue", 1:"c-red", 2:"c-green", 3:"c-orange", h:"hl", u:"ul", e:"box" };
+
+  editorEl.addEventListener("keydown", (e) => {
+    // Escape cancels sticky mode only. In the real app Escape exits the text
+    // editor, so it must never be claimed for anything else.
+    if (e.key === "Escape") {
+      if (!sticky.size) return;          // let it through to exit the editor
+      e.preventDefault();
+      sticky.clear(); showSticky();
+      return;
+    }
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+
+    if (k === "\\") { e.preventDefault(); apply("plain"); return; }
+
+    if (k === "z") {
+      e.preventDefault();
+      const from = e.shiftKey ? redoStack : undoStack;
+      const to = e.shiftKey ? undoStack : redoStack;
+      if (!from.length) return;
+      to.push({ doc:RT.clone(doc), sel:{ ...sel } });
+      const prev = from.pop();
+      doc = prev.doc; sel = prev.sel;
+      render(); writeSelection(); updateBubble();
+      return;
+    }
+    if (k === "b" && e.shiftKey) { e.preventDefault(); apply("breakout"); return; }
+    const act = KEYS[k];
+    if (!act) return;
+    e.preventDefault();
+    apply(act);
+  });
+
+  render();
+  editorEl.focus();
+  sel = { start:0, end:0 };
+  writeSelection();
+})();
+</script>
+</body>
+</html>

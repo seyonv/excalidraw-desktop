@@ -124,7 +124,50 @@ browser via a link/QR code. Technically the hardest of the five.
 
 ---
 
+## 6. Inline Text Emphasis — many styles inside one text block
+
+**Spec:** `docs/superpowers/specs/2026-08-23-inline-text-emphasis-design.md`
+**Plan:** `docs/superpowers/plans/2026-08-23-inline-text-emphasis.md`
+**Prototype:** `docs/prototypes/inline-emphasis/` — working, 30 model tests + 28
+browser tests passing. Read it before starting; it already encodes the bugs.
+
+Unlike loops 1-5 this one is fully specified: the design is settled and the
+interaction was prototyped and tested with a real user in the loop. The loop is
+for execution quality, not discovery. Colour, highlight, underline,
+box-around-a-range and breakout — applied by selection or while typing forward.
+Explicitly no bold, italic or per-run size: every Excalidraw canvas font ships
+Regular only, and elements have `angle` (rotation), not shear.
+
+**Gauntlet prompt:**
+
+> Implement inline text emphasis for the Excalidraw desktop app in this repo, following
+> `docs/superpowers/plans/2026-08-23-inline-text-emphasis.md` and its spec. A single text
+> block must hold different styles per phrase — colour, highlight, underline, box, breakout —
+> applied by selecting a range or by typing forward, without ever forking Excalidraw.
+> The bar is Figma's text editing on canvas. Open a real Figma file, style part of a string
+> inside one text object, and compare against that directly, not against a description of it:
+> how the overlay tracks zoom and scroll, how selection and the toolbar feel, whether a
+> keystroke ever drops a character. Break this into the smallest pieces that can be judged on
+> their own — model, layout, element generation, the overlay, the bubble, app integration. For
+> each piece, fan out a builder and a separate critic with fresh context. The critic drives the
+> real app, puts our recording next to Figma's blind with the labels stripped, says which is
+> better, and names the single biggest remaining gap. Then it goes back to the builder.
+> The critic should be a harsh critic. Praise is not useful. If ours does not win, it keeps going.
+> Two things are non-negotiable and a critic must reject on either: no keystroke may ever lose a
+> character (the fuzz invariants in the prototype's model tests are the standard), and formatting
+> must survive quitting and reopening the app, because `customData` round-tripping through the
+> file is the whole basis of the design. Run `npm run test:richtext`, `npm run test:mcp` and
+> `cargo test` green before claiming any piece is done.
+> /loop on each piece until the critic picks ours blind. Do not stop before that.
+> Keep a live progress page updating as the work evolves so I can watch it.
+> Fan out subagents and ultracode.
+
+---
+
 ## Suggested order
 
-1 → 2 → 3 ship compounding value on the library (the product's stated moat);
-4 is the demo-magnet; 5 is the moonshot — run it last, in its own worktree lane.
+6 first if you want a win overnight — it is the only one with a settled spec, a
+tested prototype and a plan, so the loop spends its time on execution quality
+rather than discovery. Then 1 → 2 → 3, which ship compounding value on the
+library (the product's stated moat); 4 is the demo-magnet; 5 is the moonshot —
+run it last, in its own worktree lane.
