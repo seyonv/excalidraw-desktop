@@ -160,6 +160,7 @@ cd src-tauri && cargo test   # test the file-library layer
 npm run test:mcp       # test the MCP server
 npm run test:richtext  # test the inline-emphasis model, layout and elements
 npm run test:overlay   # drive the text editor in a real browser (needs `npm run dev`)
+npm run test:app       # drive it against a real Excalidraw canvas (needs `npm run dev`)
 ```
 
 ### How it's put together

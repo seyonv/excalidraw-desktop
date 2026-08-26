@@ -1,17 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Excalidraw,
-  CaptureUpdateAction,
-  sceneCoordsToViewportCoords,
-} from "@excalidraw/excalidraw";
+import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
-import RichTextOverlay, { ACT_FOR_KEY } from "./components/RichTextOverlay";
-import { fromText } from "./lib/richtext/model";
-import { layout } from "./lib/richtext/layout";
-import { canvasMeasure, fontsReady } from "./lib/richtext/measure";
-import { isRichText, readModel, toElements } from "./lib/richtext/elements";
+import RichTextOverlay from "./components/RichTextOverlay";
+import { useRichTextEditing } from "./lib/richtext/useRichTextEditing";
 import {
   createDrawing,
   deleteDrawing,
@@ -31,7 +24,6 @@ const LAST_ACTIVE_KEY = "excalidraw:lastActive";
 const SIDEBAR_KEY = "excalidraw:sidebarOpen";
 const MIGRATED_KEY = "excalidraw:migrated";
 const SAVE_DEBOUNCE_MS = 600;
-const BOX_PADDING = 6;
 
 function App() {
   const [drawings, setDrawings] = useState([]);
@@ -50,15 +42,8 @@ function App() {
   // while you had it open." Reuses the same toast element, styled neutrally.
   const [notice, setNotice] = useState(null);
 
-  // { doc, base, elementIds, hidden, initialAct } while a rich text block is
-  // being edited. `hidden` is exactly what we removed from the scene, so a
-  // cancelled edit can put it back rather than losing the block.
-  const [editing, setEditing] = useState(null);
-  const [editScreen, setEditScreen] = useState(null);
-
   const apiRef = useRef(null);
   const canvasAreaRef = useRef(null);
-  const editingRef = useRef(null);
   const activeNameRef = useRef(null);
   const dirtyRef = useRef(false);
   const timerRef = useRef(null);
@@ -67,6 +52,14 @@ function App() {
   // match one of these is our own autosave echoing back — dropping it is what
   // stops write → watch → reload → change → write from looping forever.
   const lastWrittenRef = useRef(new Map());
+
+  const {
+    editing,
+    editScreen,
+    commitEditing,
+    cancelEditing,
+    isEditingRef,
+  } = useRichTextEditing({ apiRef, containerRef: canvasAreaRef });
 
   const refreshList = useCallback(async () => {
     setDrawings(await listDrawings());
@@ -265,11 +258,11 @@ function App() {
     setTheme(appState.theme ?? "light");
     // While editing, the scene is missing the block being edited. Saving that
     // would write a file without it, and quitting mid-edit would lose it.
-    if (editingRef.current) return;
+    if (isEditingRef.current) return;
     dirtyRef.current = true;
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS);
-  }, []);
+  }, [isEditingRef]);
 
   const handleSelect = useCallback(
     async (name) => {
@@ -348,159 +341,6 @@ function App() {
     },
     [discardPendingSave, openScene],
   );
-
-  /* ---------- inline text emphasis ---------- */
-
-  /** Where a scene point sits inside `.canvas-area`, plus the current zoom. */
-  const screenFor = useCallback((base) => {
-    const api = apiRef.current;
-    const area = canvasAreaRef.current;
-    if (!api || !area) return null;
-    const appState = api.getAppState();
-    const { x, y } = sceneCoordsToViewportCoords(
-      { sceneX: base.x, sceneY: base.y },
-      appState,
-    );
-    const box = area.getBoundingClientRect();
-    return { left: x - box.left, top: y - box.top, zoom: appState.zoom.value };
-  }, []);
-
-  const openEditor = useCallback(
-    (blocks, base, elementIds, initialAct) => {
-      const api = apiRef.current;
-      if (!api) return;
-      const all = api.getSceneElements();
-      const hidden = all.filter((el) => elementIds.includes(el.id));
-      const next = { doc: blocks, base, elementIds, hidden, initialAct };
-      editingRef.current = next;
-      // NEVER keeps this transient removal out of undo history, so the whole
-      // edit is one undo step rather than two.
-      api.updateScene({
-        elements: all.filter((el) => !elementIds.includes(el.id)),
-        captureUpdate: CaptureUpdateAction.NEVER,
-      });
-      setEditing(next);
-      setEditScreen(screenFor(base));
-    },
-    [screenFor],
-  );
-
-  const commitEditing = useCallback(async (doc) => {
-    const current = editingRef.current;
-    if (!current) return;
-    const { base, elementIds } = current;
-    // Clear first: the updateScene below must be seen by handleChange so the
-    // finished edit is autosaved.
-    editingRef.current = null;
-    await fontsReady();
-    const api = apiRef.current;
-    if (!api) return;
-    const laidOut = layout(doc, {
-      measure: canvasMeasure(base.fontSize, base.fontFamily),
-      maxWidth: base.maxWidth,
-      fontSize: base.fontSize,
-      lineHeight: base.lineHeight,
-      boxPadding: BOX_PADDING,
-    });
-    const rest = api.getSceneElements().filter((el) => !elementIds.includes(el.id));
-    api.updateScene({
-      elements: [...rest, ...toElements(doc, laidOut, base)],
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-    setEditing(null);
-    setEditScreen(null);
-  }, []);
-
-  /** Nothing changed, so put back exactly what was hidden. */
-  const cancelEditing = useCallback(() => {
-    const current = editingRef.current;
-    if (!current) return;
-    editingRef.current = null;
-    const api = apiRef.current;
-    if (api) {
-      api.updateScene({
-        elements: [...api.getSceneElements(), ...current.hidden],
-        captureUpdate: CaptureUpdateAction.NEVER,
-      });
-    }
-    setEditing(null);
-    setEditScreen(null);
-  }, []);
-
-  // Double-clicking a rich text block opens our editor instead of Excalidraw's.
-  useEffect(() => {
-    const area = canvasAreaRef.current;
-    if (!area) return undefined;
-    const onDoubleClick = (event) => {
-      const api = apiRef.current;
-      if (!api || editingRef.current) return;
-      const { selectedElementIds } = api.getAppState();
-      const all = api.getSceneElements();
-      const hit = all.find((el) => selectedElementIds[el.id] && isRichText(el));
-      if (!hit) return;
-      const richTextId = hit.customData.richTextId;
-      const group = all.filter((el) => el.customData?.richTextId === richTextId);
-      const model = readModel(group);
-      if (!model) return;
-      // Stop it here: Excalidraw's own double-click handler is a bubble-phase
-      // listener at the React root, so it never sees the event.
-      event.preventDefault();
-      event.stopPropagation();
-      openEditor(
-        model.blocks,
-        { ...model.base, id: richTextId, groupId: hit.groupIds?.[0] ?? `rtg-${richTextId}` },
-        group.map((el) => el.id),
-      );
-    };
-    area.addEventListener("dblclick", onDoubleClick, true);
-    return () => area.removeEventListener("dblclick", onDoubleClick, true);
-  }, [openEditor]);
-
-  // An emphasis shortcut on a selected plain text element converts it.
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (editingRef.current) return;
-      if (!(event.metaKey || event.ctrlKey)) return;
-      const act = ACT_FOR_KEY[event.key.toLowerCase()];
-      if (!act) return;
-      const api = apiRef.current;
-      if (!api) return;
-      const { selectedElementIds } = api.getAppState();
-      const selected = api.getSceneElements().filter((el) => selectedElementIds[el.id]);
-      if (selected.length !== 1) return;
-      const el = selected[0];
-      if (el.type !== "text" || isRichText(el)) return;
-      event.preventDefault();
-      const id = `rt-${el.id}`;
-      openEditor(
-        fromText(el.originalText ?? el.text),
-        {
-          id,
-          x: el.x,
-          y: el.y,
-          maxWidth: Math.max(el.width, el.fontSize * 4),
-          fontSize: el.fontSize,
-          fontFamily: el.fontFamily,
-          lineHeight: el.lineHeight ?? 1.25,
-          strokeColor: el.strokeColor,
-          groupId: `rtg-${id}`,
-        },
-        [el.id],
-        act,
-      );
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [openEditor]);
-
-  // Panning or zooming mid-edit must not leave the editor over the wrong part
-  // of the canvas.
-  useEffect(() => {
-    if (!editing) return undefined;
-    const api = apiRef.current;
-    if (!api?.onScrollChange) return undefined;
-    return api.onScrollChange(() => setEditScreen(screenFor(editing.base)));
-  }, [editing, screenFor]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((open) => {

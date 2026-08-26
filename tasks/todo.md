@@ -150,31 +150,31 @@ unattended run, intended for overnight.
       one per defect this loop found, so the next person does not rediscover
       them.
 
-**Still unverified, and it needs a human:** everything that requires Excalidraw
-itself — double-click to open a rich block, the commit path writing generated
-elements back into the scene, pan/zoom tracking, and the autosave echo check.
-That surface only exists inside the Tauri window, whose webview cannot be
-driven from here. The double-click interception was checked structurally
-instead: Excalidraw's handler is a React `onDoubleClick`, dispatched at the
-React root on the bubble phase, so a capture-phase listener on `.canvas-area`
-does run first and `stopPropagation` does prevent it. That is reasoning, not
-evidence — it wants one manual `npm run tauri dev` pass.
+- [x] **Integration verified in a browser.** Extracted the ~150 lines of editing
+      logic out of `App.jsx` into `src/lib/richtext/useRichTextEditing.js`, so
+      it can be mounted against a bare Excalidraw and driven. `App.jsx` is back
+      to owning library state and autosave. `dev/app-harness.{html,jsx}` mounts
+      real Excalidraw + the real hook + the real overlay;
+      `dev/e2e-app.sh` (`npm run test:app`) drives it. **18 assertions, all
+      passing**: the block generates into the scene as real elements,
+      double-click opens our editor rather than Excalidraw's, the emphasis comes
+      back **out of `customData`** rather than being rebuilt as plain text, the
+      elements are hidden mid-edit, committing puts them back with the edit and
+      the styling intact, reopening reads the committed model, a cancelled edit
+      restores exactly what was hidden, the overlay follows a zoom change, and
+      no console errors.
 
-**Flagged for Seyon, not changed:** the plan stores the whole model in
-`customData` on *every* generated element, deliberately, so any surviving
-element can rebuild the block. That means a 40-fragment text block writes ~40
-copies of the model into the `.excalidraw` file. It is a settled design
-decision, so the loop is not touching it — but if file size matters, storing it
-on the first text element only (with `richTextId` still on all) is the obvious
-reduction. Worth a look at Task 8 when there are real files to measure.
+      Two bugs the extraction caught, both mine: `isEditingRef` was referenced
+      in `handleChange`'s dependency array before the hook that defines it ran —
+      a temporal dead zone error that the build does not catch — and the test
+      helper's `updateScene({appState})` wiped the whole scene, because
+      Excalidraw treats a missing `elements` key as an empty scene. The second
+      is now a CLAUDE.md rule; the app code was always passing elements.
 
-## Notes for whoever picks this up
-
-The design is settled and was prototyped with Seyon in the loop — the gauntlet
-loop is for execution quality, not rediscovery. Do not reopen the fork question;
-`docs/superpowers/specs/…-design.md` records why it lost.
-
-The prototype is the reference implementation of the model. Port it rather than
-rewriting it: its tests already encode the bugs we hit, in particular the v2
-regression where an uncontrolled `contenteditable` destroyed characters around a
-line break.
+**What still needs you — one `npm run tauri dev` pass.** Only the file layer is
+unverified now: autosave echo suppression while editing, and the quit-and-reopen
+round trip through a real `.excalidraw` file on disk. Everything above it is
+covered — 54 unit tests, 36 overlay assertions, 18 integration assertions. The
+model's trip through JSON is pinned by unit test, and the trip through a live
+Excalidraw scene by the integration suite; what is untested is only the bytes
+going to and from disk, which is unchanged code plus the `handleChange` guard.

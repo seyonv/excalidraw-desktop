@@ -165,8 +165,9 @@ check "committed doc carries the edit" "true" \
   "$(js 'const c=JSON.parse(document.getElementById("committed").textContent); String(c.blocks[0].runs[0].text.startsWith("QThe migration"))')"
 
 # ---------- 13. no console errors anywhere ----------
-check "no console errors" "(no console errors)" \
-  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|^$' | head -5)"
+# the vite HMR socket is dev-server noise, not the app
+check "no console errors" "" \
+  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|^$' | head -5)"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

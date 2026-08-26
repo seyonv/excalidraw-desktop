@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test:mcp": "node --test 'mcp/**/*.test.js'",
     "test:richtext": "node --test 'src/lib/richtext/*.test.js'",
-    "test:overlay": "./dev/e2e-overlay.sh"
+    "test:overlay": "./dev/e2e-overlay.sh",
+    "test:app": "./dev/e2e-app.sh"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",

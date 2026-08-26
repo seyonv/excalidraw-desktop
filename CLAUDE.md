@@ -30,7 +30,10 @@ mcp/server.js             MCP server wiring: registers draw, edit, list_drawings
 mcp/lib/*.js              all MCP behaviour — server.js stays wiring-only
 src/lib/richtext/         inline emphasis: model → layout → elements, all pure
 src/components/RichTextOverlay.jsx  the controlled contenteditable over the canvas
-dev/                      dev-only test harness for the overlay; never shipped
+src/lib/richtext/useRichTextEditing.js  when the overlay opens and how the
+                          result goes back into the scene — kept out of App.jsx
+                          so it can be driven by a browser
+dev/                      dev-only harnesses + browser suites; never shipped
 ```
 
 Keep these boundaries. If the sidebar starts calling `invoke` directly, or `App.jsx`
@@ -94,6 +97,9 @@ starts formatting filenames, the seams have eroded.
   out at the same width from the same origin, and neither is recoverable from the
   generated elements: a highlight bleeds left of the origin, and a block that
   happens not to wrap says nothing about the width it was wrapped to.
+
+- **`updateScene` with no `elements` key wipes the scene.** Every call must pass
+  the elements it wants to keep, even one that only means to change `appState`.
 
 ## Gotchas in this repo
 

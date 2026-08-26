@@ -1,0 +1,78 @@
+#!/bin/bash
+# Drives the rich text integration against a real Excalidraw: opening on
+# double-click, what the scene looks like mid-edit, committing back, cancelling,
+# and tracking zoom. Needs the Vite dev server: npm run dev
+B=~/.claude/skills/gstack/browse/dist/browse
+URL="http://localhost:1420/dev/app-harness.html"
+HELPERS="$(dirname "$0")/app-harness.js"
+
+pass=0; fail=0
+check() {
+  if [ "$2" = "$3" ]; then pass=$((pass+1));
+  else fail=$((fail+1)); printf 'FAIL  %s\n      expected: %s\n      actual:   %s\n' "$1" "$2" "$3"; fi
+}
+reset() { $B goto "$URL" >/dev/null; sleep 2; $B eval "$HELPERS" >/dev/null; }
+js() { $B js "$1"; }
+open_editor() { js "window.__selectRich()" >/dev/null; js "window.__dblclick()" >/dev/null; }
+
+TEXT="The migration ran clean on staging. Ship on Tuesday."
+
+# ---------- 1. the fixture renders as real Excalidraw elements ----------
+reset
+check "block generated into the scene" "4" "$(js 'window.__sceneRichCount()')"
+check "scene text matches the model"    "$TEXT" "$(js 'window.__sceneText()')"
+
+# ---------- 2. double-click opens our editor, not Excalidraw's ----------
+open_editor
+check "overlay opens on double-click" "true" "$(js 'window.__overlayOpen()')"
+check "overlay shows the whole text"  "$TEXT" "$(js 'window.__overlayText()')"
+
+# the emphasis came back out of customData rather than being rebuilt as plain text
+check "styled run survived the scene" "true" \
+  "$(js 'String(window.__overlayRuns().some(r=>r.cls.includes("c-blue")&&r.text==="Ship on Tuesday"))')"
+
+# ---------- 3. the block is out of the scene while it is being edited ----------
+check "elements hidden during edit" "0" "$(js 'window.__sceneRichCount()')"
+
+# ---------- 4. committing puts it back ----------
+$B press "ArrowRight" >/dev/null      # collapse the select-all
+$B type "!" >/dev/null
+$B press "Escape" >/dev/null
+sleep 1
+check "overlay closes on commit" "false" "$(js 'window.__overlayOpen()')"
+check "elements are back"        "true"  "$(js 'String(window.__sceneRichCount()>0)')"
+check "the edit reached the scene" "true" \
+  "$(js 'String(window.__sceneText().includes("!"))')"
+check "the styling survived the commit" "true" \
+  "$(js 'String(JSON.parse(window.__sceneModel()).some(b=>b.runs.some(r=>r.color==="#1971c2")))')"
+
+# ---------- 5. reopening reads the committed model ----------
+open_editor
+check "reopen shows the edit" "true" "$(js 'String(window.__overlayText().includes("!"))')"
+check "reopen keeps the colour" "true" \
+  "$(js 'String(window.__overlayRuns().some(r=>r.cls.includes("c-blue")))')"
+
+# ---------- 6. a cancelled edit restores exactly what was hidden ----------
+reset
+BEFORE=$(js 'window.__sceneRichCount()')
+open_editor
+check "hidden while editing" "0" "$(js 'window.__sceneRichCount()')"
+$B press "Escape" >/dev/null
+sleep 1
+check "cancel restores every element" "$BEFORE" "$(js 'window.__sceneRichCount()')"
+check "cancel keeps the text intact"  "$TEXT"   "$(js 'window.__sceneText()')"
+
+# ---------- 7. the overlay tracks zoom ----------
+reset
+open_editor
+check "overlay starts unscaled" "matrix(1, 0, 0, 1, 0, 0)" "$(js 'window.__overlayTransform()')"
+js "window.__setZoom(2)" >/dev/null
+sleep 1
+check "overlay follows the zoom" "matrix(2, 0, 0, 2, 0, 0)" "$(js 'window.__overlayTransform()')"
+
+# ---------- 8. no console errors (the vite HMR socket is not one) ----------
+check "no console errors" "" \
+  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|^$' | head -5)"
+
+printf '\n%d passed, %d failed\n' "$pass" "$fail"
+[ "$fail" -eq 0 ]
