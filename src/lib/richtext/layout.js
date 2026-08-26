@@ -34,7 +34,7 @@ export function layout(doc, opts) {
         last.text += text;
         last.width += width;
       } else {
-        fragments.push({ run, text, x, width });
+        fragments.push({ run, text, x, width, padding: 0 });
       }
       x += width;
     };
@@ -53,7 +53,9 @@ export function layout(doc, opts) {
         const width = measure(run.text) + boxPadding * 2;
         if (width <= available) {
           if (x + width > available && fragments.length) flush();
-          fragments.push({ run, text: run.text, x, width });
+          // padding travels with the fragment so element generation does not
+          // have to guess whether this width includes it
+          fragments.push({ run, text: run.text, x, width, padding: boxPadding });
           x += width;
           continue;
         }

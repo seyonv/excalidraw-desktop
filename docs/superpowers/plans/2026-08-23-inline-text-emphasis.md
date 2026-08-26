@@ -359,7 +359,7 @@ The only file that knows what an `.excalidraw` element looks like.
   - `readModel(elements) -> { id, blocks } | null`
   - `isRichText(element) -> boolean`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 import { test } from "node:test";
@@ -428,12 +428,12 @@ test("readModel returns null for ordinary elements", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm run test:richtext`
 Expected: FAIL — `Cannot find module './elements.js'`.
 
-- [ ] **Step 3: Implement element generation**
+- [x] **Step 3: Implement element generation**
 
 ```js
 const HIGHLIGHT_FILL = "#ffec99";
@@ -546,12 +546,12 @@ export function readModel(elements) {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run test:richtext`
 Expected: all element tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git checkout -- public/

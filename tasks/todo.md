@@ -49,7 +49,27 @@ unattended run, intended for overnight.
       reassemble to exactly the source text, with a line-count ceiling to catch
       a non-consuming loop. `test:richtext` 38/38, `test:mcp` 93/93,
       `cargo test` 11/11.
-- [ ] **Task 4 — element generation** ← next
+- [x] **Task 4 — element generation.** `src/lib/richtext/elements.js` + 11
+      tests, written test-first. Found a defect that only shows up across two
+      pieces: element generation re-derived box padding from `run.box`, but a
+      boxed run too wide to fit falls through layout's character-breaking path
+      and its width carries no padding — so those fragments were drawn inset by
+      6px on each side with a 12px-short text width. Layout now records
+      `padding` on the fragment and generation trusts it. Also made the
+      highlight bleed symmetric (it was 2px taller above than below). Pinned
+      both non-negotiables here: the model survives `JSON.parse(JSON.stringify())`,
+      which is exactly the trip it makes through the file, and the text elements
+      reassemble to the model's text with nothing lost.
+      `test:richtext` 49/49, `test:mcp` 93/93, `cargo test` 11/11.
+- [ ] **Task 5 — the emphasis bubble** ← next
+
+**Flagged for Seyon, not changed:** the plan stores the whole model in
+`customData` on *every* generated element, deliberately, so any surviving
+element can rebuild the block. That means a 40-fragment text block writes ~40
+copies of the model into the `.excalidraw` file. It is a settled design
+decision, so the loop is not touching it — but if file size matters, storing it
+on the first text element only (with `richTextId` still on all) is the obvious
+reduction. Worth a look at Task 8 when there are real files to measure.
 - [ ] Task 4 — element generation
 - [ ] Task 5 — the emphasis bubble
 - [ ] Task 6 — the editing overlay
