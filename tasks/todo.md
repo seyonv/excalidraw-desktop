@@ -26,6 +26,27 @@ unattended run, intended for overnight.
       spec's recommended defaults; any that turns out to be load-bearing during
       the loop gets written up here as it is hit.
 
+## Loop progress (live — gauntlet loop 6 running)
+
+- [x] **Task 1 — the model.** `src/lib/richtext/model.js` ported verbatim from the
+      prototype's `RT` module; all 30 tests ported to `node:test` in
+      `model.test.js` (incl. the 400-iteration fuzz). `npm run test:richtext`
+      green, 30/30. Commit `cc39b35`.
+- [x] **Task 2 — text measurement.** `src/lib/richtext/measure.js`. Verified the
+      `FONT_FAMILY` id→name inversion statically against the shipped bundle
+      (`{Virgil:1,…,Excalifont:5,…}`), so `fontString(20, 5)` resolves to
+      `20px Excalifont, …`. Extended the fallback chain to mirror Excalidraw's
+      own (`Xiaolai, Segoe UI Emoji` for Excalifont) — a shorter chain than the
+      renderer uses puts our line breaks out of step on non-Latin text.
+      Commit `61e4bf8`. The in-app devtools check folds into the Task 7/8 E2E run.
+- [ ] **Task 3 — layout** ← next
+- [ ] Task 4 — element generation
+- [ ] Task 5 — the emphasis bubble
+- [ ] Task 6 — the editing overlay
+- [ ] Task 7 — wire it into the app
+- [ ] Task 8 — round-trip and interaction tests
+- [ ] Task 9 — README
+
 ## Notes for whoever picks this up
 
 The design is settled and was prototyped with Seyon in the loop — the gauntlet
