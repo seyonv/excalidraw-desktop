@@ -12,6 +12,7 @@ import { applyStyle, fromText } from "../src/lib/richtext/model.js";
 import { layout } from "../src/lib/richtext/layout.js";
 import { canvasMeasure } from "../src/lib/richtext/measure.js";
 import { toElements } from "../src/lib/richtext/elements.js";
+import { parseScene, serializeScene } from "../src/lib/drawings.js";
 
 const BASE = {
   x: 120, y: 120, id: "rt-fixture", maxWidth: 420, fontSize: 20, fontFamily: 5,
@@ -48,6 +49,10 @@ function Harness() {
           apiRef.current = api;
           window.__api = api;
           window.__area = areaRef.current;
+          // The exact pair the app uses to write and read a .excalidraw file,
+          // so the harness can round-trip the scene through the file format.
+          window.__serializeScene = serializeScene;
+          window.__parseScene = parseScene;
         }}
         initialData={{ elements: INITIAL, appState: { viewBackgroundColor: "#ffffff" } }}
       />

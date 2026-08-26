@@ -67,5 +67,24 @@
     return api.getAppState().zoom.value;
   };
 
+  /** Serialize the scene exactly as an autosave would, then load it back
+   *  exactly as opening the file would. This is the quit-and-reopen path with
+   *  the disk hop removed. */
+  window.__roundTripThroughFileFormat = () => {
+    const contents = window.__serializeScene(
+      api.getSceneElements(), api.getAppState(), api.getFiles(),
+    );
+    const parsed = window.__parseScene(contents);
+    api.updateScene({
+      elements: parsed.elements,
+      appState: { ...api.getAppState(), selectedElementIds: {} },
+    });
+    return contents.length;
+  };
+
+  /** The serialized bytes, for writing to a real file outside the browser. */
+  window.__serialized = () =>
+    window.__serializeScene(api.getSceneElements(), api.getAppState(), api.getFiles());
+
   return "ok";
 })();

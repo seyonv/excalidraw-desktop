@@ -509,6 +509,20 @@ mod tests {
         delete_drawing(renamed.clone()).unwrap();
         assert!(!list_drawings().unwrap().iter().any(|d| d.name == renamed));
 
+        // A real rich-text scene, captured out of the running app, must come
+        // back byte-identical. Inline emphasis lives in each element's
+        // `customData`, so anything this layer normalised would silently strip
+        // a drawing's formatting on the next open.
+        let captured = include_str!("../tests/fixtures/rich-text-scene.excalidraw");
+        let rich = create_drawing(Some("Rich text".into()), Some(captured.into())).unwrap();
+        let read_back = read_drawing(rich.clone()).unwrap();
+        assert_eq!(read_back, captured);
+        assert!(read_back.contains("richTextId"));
+        assert!(read_back.contains("\"color\":\"#1971c2\""));
+        // and it still survives a rename, which moves the file
+        let moved = rename_drawing(rich, "Rich text renamed".into()).unwrap();
+        assert_eq!(read_drawing(moved).unwrap(), captured);
+
         std::env::remove_var("EXCALIDRAW_LIBRARY_DIR");
         let _ = fs::remove_dir_all(&dir);
     }

@@ -70,7 +70,30 @@ js "window.__setZoom(2)" >/dev/null
 sleep 1
 check "overlay follows the zoom" "matrix(2, 0, 0, 2, 0, 0)" "$(js 'window.__overlayTransform()')"
 
-# ---------- 8. no console errors (the vite HMR socket is not one) ----------
+# ---------- 8. the quit-and-reopen path, through the real file format ----------
+# serializeScene + parseScene are the exact pair the app writes and reads files
+# with, so this is the round trip minus the disk hop.
+reset
+open_editor
+$B press "ArrowRight" >/dev/null
+$B type " Done." >/dev/null
+$B press "Escape" >/dev/null
+sleep 1
+AFTER_EDIT="$(js 'window.__sceneText()')"
+js "window.__roundTripThroughFileFormat()" >/dev/null
+sleep 1
+check "text survives the file format" "$AFTER_EDIT" "$(js 'window.__sceneText()')"
+check "emphasis survives the file format" "true" \
+  "$(js 'String(JSON.parse(window.__sceneModel()).some(b=>b.runs.some(r=>r.color==="#1971c2")))')"
+# and it is still editable after the round trip, which is the point of it
+open_editor
+check "reopens after the round trip" "true" "$(js 'window.__overlayOpen()')"
+check "reopened block keeps its colour" "true" \
+  "$(js 'String(window.__overlayRuns().some(r=>r.cls.includes("c-blue")))')"
+check "reopened block keeps the edit" "true" \
+  "$(js 'String(window.__overlayText().includes("Done."))')"
+
+# ---------- 9. no console errors (the vite HMR socket is not one) ----------
 check "no console errors" "" \
   "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|^$' | head -5)"
 
