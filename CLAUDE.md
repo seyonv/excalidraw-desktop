@@ -28,6 +28,9 @@ src-tauri/src/lib.rs      file operations + name sanitising + tests
 mcp/server.js             MCP server wiring: registers draw, edit, list_drawings,
                           describe_scene, rename_drawing, delete_drawing, open_drawing
 mcp/lib/*.js              all MCP behaviour — server.js stays wiring-only
+src/lib/richtext/         inline emphasis: model → layout → elements, all pure
+src/components/RichTextOverlay.jsx  the controlled contenteditable over the canvas
+dev/                      dev-only test harness for the overlay; never shipped
 ```
 
 Keep these boundaries. If the sidebar starts calling `invoke` directly, or `App.jsx`
@@ -69,6 +72,28 @@ starts formatting filenames, the seams have eroded.
   that resolved value everywhere after — never the raw input. Returning the
   raw name while the file is written under the sanitised one poisons
   `activeNameRef` in `App.jsx` and silently breaks live reload for that drawing.
+
+- **The rich text pipeline is model → layout → elements, and each stays pure.**
+  `layout.js` takes its measure function as a parameter so it never imports
+  `measure.js` (the only file needing a browser). Keep it that way — it is why
+  the whole thing is testable under `node --test`.
+- **Layout records `padding` and `hardBreak` on what it emits; downstream must
+  not re-derive them.** A boxed run too wide to fit falls through to character
+  breaking and its width carries no padding, so reading `run.box` to decide
+  whether to subtract padding draws the text inset and short. An explicit `\n`
+  breaks the canvas line, and since no fragment carries the character, `hardBreak`
+  is the only record that it was there.
+- **Autosave must not run while a rich text block is being edited.** Opening the
+  editor removes the block's elements from the scene; a save in that window would
+  write a file without it, and quitting mid-edit would lose it. `handleChange`
+  returns early while `editingRef` is set, and the commit clears it *before*
+  `updateScene` so the finished edit still saves.
+- **A cancelled edit must restore the exact elements that were hidden.** They are
+  stashed on open for that reason — nothing else in the scene can reconstruct them.
+- **The base travels with the model in `customData`.** A reopened block has to lay
+  out at the same width from the same origin, and neither is recoverable from the
+  generated elements: a highlight bleeds left of the origin, and a block that
+  happens not to wrap says nothing about the width it was wrapped to.
 
 ## Gotchas in this repo
 

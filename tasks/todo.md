@@ -137,7 +137,18 @@ unattended run, intended for overnight.
       every character accounted for exactly), and the commit/cancel contract
       (an unchanged edit reports a cancel; a changed one commits the edited doc).
 
-- [ ] **Task 9 — README** ← next, with the remaining verification below
+- [x] **Task 9 — README.** New "Inline emphasis" section: what it does, the
+      shortcut table, both forward-typing paths (sticky and markdown triggers),
+      and a plain statement of the limits and why — no bold, no italic, one size
+      per block, because every canvas font ships a single weight and elements
+      have a rotation angle rather than a shear. Added the comparison-table row
+      (one colour per block on the web vs many styles here), the two new test
+      commands, and the new modules in the architecture map. Nothing on the
+      Roadmap to tick — inline formatting was never listed there.
+
+      Also added five entries to CLAUDE.md's "Rules that came from real bugs",
+      one per defect this loop found, so the next person does not rediscover
+      them.
 
 **Still unverified, and it needs a human:** everything that requires Excalidraw
 itself — double-click to open a rich block, the commit path writing generated

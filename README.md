@@ -33,6 +33,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 | **Saving**                       | Manual export                | Autosaves as you draw                                |
 | **Works offline**                | Needs the page loaded        | Fully native, no network at all                      |
 | **Opening a `.excalidraw` file** | Drag into the browser        | Double-click it in Finder / Explorer                 |
+| **Styling text**                 | One colour per text block    | Many styles inside one block — colour, highlight, underline, box, breakout |
 | **Driving it from an AI agent**  | Not possible                 | MCP server — Claude Code can draw and edit on the canvas |
 
 ### The sidebar
@@ -48,6 +49,48 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 ### Autosave you don't have to think about
 
 Changes are written to disk 600 ms after you stop drawing, and forced immediately whenever the window loses focus or you switch drawings. There is no save button because there is nothing to remember to press.
+
+### Inline emphasis
+
+On the web, a text block has exactly one colour. Here a single block can carry a
+different style per phrase, so a note can emphasise the word that matters instead
+of being split into separate elements to do it.
+
+Double-click a text block to edit it, select a phrase, and press a key. (An
+ordinary text element converts the first time you press one of these with it
+selected.)
+
+| Emphasis                 | Shortcut |
+| ------------------------ | ----- |
+| Blue (primary emphasis)  | `⌘B`  |
+| Red / green / orange     | `⌘1` `⌘2` `⌘3` |
+| Highlight                | `⌘H`  |
+| Underline                | `⌘U`  |
+| Box around the phrase    | `⌘E`  |
+| Break out into its own block | `⌘⇧B` |
+| Strip all formatting     | `⌘\`  |
+
+`⌘B` means *blue*, not bold — a deliberate hijack of the muscle memory, because
+bold is not available (see the limits below). Everything is a toggle: `⌘B` on
+blue text turns it black again. A small toolbar appears above the selection with
+the same actions, and lights up the ones already applied.
+
+You can also format **forward**, without selecting anything first:
+
+- Press a shortcut with no selection and it turns on for what you type next — a
+  chip near the caret shows what's active, and `Esc` turns it off.
+- Type `**blue**`, `==highlight==`, `__underline__` or `[[box]]` and the
+  delimiters disappear as you close them.
+
+**The limits, and why.** No bold, no italic, and one text size per block. Every
+font Excalidraw ships for the canvas has a single weight, and elements have a
+rotation angle rather than a shear, so there is nothing to render bold or italic
+*with*. Colour, highlight, underline, box and breakout are the emphasis the
+canvas can actually draw.
+
+Formatting is stored in the element's `customData` and rendered as ordinary
+Excalidraw elements, so the file stays a valid `.excalidraw` — open it anywhere
+else and the pixels are still right.
 
 ## Your drawings are just files
 
@@ -115,6 +158,8 @@ npm run tauri dev      # run the app with hot reload
 npm run tauri build    # produce installers for the current platform
 cd src-tauri && cargo test   # test the file-library layer
 npm run test:mcp       # test the MCP server
+npm run test:richtext  # test the inline-emphasis model, layout and elements
+npm run test:overlay   # drive the text editor in a real browser (needs `npm run dev`)
 ```
 
 ### How it's put together
@@ -123,6 +168,8 @@ npm run test:mcp       # test the MCP server
 src/
 ├── App.jsx                  # owns the library state + autosave lifecycle
 ├── components/Sidebar.jsx   # the drawing list (presentational only)
+├── components/RichTextOverlay.jsx  # the text editor shown over the canvas
+├── lib/richtext/            # inline emphasis: model, layout, element generation
 └── lib/drawings.js          # the single place that talks to Rust
 src-tauri/src/lib.rs         # file operations, name sanitising, tests
 mcp/server.js                 # MCP server: draw, edit, list, describe, rename, delete, open
