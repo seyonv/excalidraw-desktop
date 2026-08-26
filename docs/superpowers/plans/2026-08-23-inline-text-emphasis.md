@@ -54,13 +54,13 @@ Pure run/block operations. No DOM, no Excalidraw imports — this file must be i
   - `COLOURS`, `MARKS` constants
   - A doc is `[{ type: "paragraph"|"breakout", runs: [{ text, color?, highlight?, underline?, box? }] }]`. Offsets run over all run text with **one implicit separator character between adjacent blocks**.
 
-- [ ] **Step 1: Port the model out of the prototype**
+- [x] **Step 1: Port the model out of the prototype**
 
 Open `docs/prototypes/inline-emphasis/prototype.html`, find the `const RT = (() => {` block (marked `MODEL — pure functions, no DOM`), and copy it into `src/lib/richtext/model.js` as ES module exports. Convert the IIFE's returned object into named `export`s; the function bodies transfer unchanged. Keep every comment.
 
 `act` is one of `"c-blue" | "c-red" | "c-green" | "c-orange" | "hl" | "ul" | "box" | "plain"` — a literal union, no enums.
 
-- [ ] **Step 2: Port the tests**
+- [x] **Step 2: Port the tests**
 
 Copy `docs/prototypes/inline-emphasis/model-test.mjs` to `src/lib/richtext/model.test.js` and change the harness: delete the `readFileSync` + `eval` extraction and replace it with a direct import, and swap the hand-rolled `t()` helper for `node:test`:
 
@@ -75,7 +75,7 @@ Each existing `t("name", () => ...)` becomes `test("name", () => ...)`. Keep all
 - every block has at least one run
 - no two adjacent runs share a `styleKey`
 
-- [ ] **Step 3: Add the test script**
+- [x] **Step 3: Add the test script**
 
 In `package.json`, alongside `test:mcp`:
 
@@ -83,12 +83,12 @@ In `package.json`, alongside `test:mcp`:
 "test:richtext": "node --test 'src/lib/richtext/*.test.js'"
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npm run test:richtext`
 Expected: 30 passing, 0 failing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git checkout -- public/

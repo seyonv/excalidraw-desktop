@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:mcp": "node --test 'mcp/**/*.test.js'"
+    "test:mcp": "node --test 'mcp/**/*.test.js'",
+    "test:richtext": "node --test 'src/lib/richtext/*.test.js'"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",

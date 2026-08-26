@@ -21,9 +21,10 @@ unattended run, intended for overnight.
 
 ## Before starting the loop
 
-- [ ] Answer (or accept the defaults on) the 5 open decisions from the red-pen
-      review of the spec. Only one changes scope: **does breakout ship in v1?**
-      Cutting it removes the block model and is the biggest available reduction.
+- [x] 5 open decisions resolved 2026-08-26. **Breakout ships in v1** — the block
+      model stays and the prototype ports over as-is. The remaining four take the
+      spec's recommended defaults; any that turns out to be load-bearing during
+      the loop gets written up here as it is hit.
 
 ## Notes for whoever picks this up
 
