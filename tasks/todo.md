@@ -1,9 +1,25 @@
 # Current work — inline text emphasis
 
-**Next action:** run gauntlet loop 6 in `tasks/gauntlet-loops.md`.
+**Status: built, committed, and verified except one manual check.**
+13 commits on `main` (`cc39b35`..`0cf960a`), working tree clean, **not pushed**.
 
-Say "continue where you left off" and that is what starts. It is a long
-unattended run, intended for overnight.
+**Next action — needs you at the machine:**
+
+1. `npm run tauri dev` (kill any `npm run dev` first, or port 1420 collides —
+   `tauri dev` starts its own Vite). Confirm the app launches and renders.
+2. Autosave echo suppression: select a text element, `⌘B` to convert and open the
+   editor, style a phrase, `Esc`, wait past the 600 ms debounce. The file in
+   `~/Documents/Excalidraw` should have the new elements, and **no "changed on
+   disk" notice** should appear. That notice would mean the write was not
+   recognised as our own echo.
+
+Nothing else is outstanding. Everything below the app layer is proven by tests:
+`npm run test:richtext` (54), `npm run test:overlay` (36), `npm run test:app`
+(23), `npm run test:mcp` (93), `cd src-tauri && cargo test` (11). The two browser
+suites need `npm run dev` running.
+
+Two things were flagged for you and deliberately **not** changed — see
+"Flagged for Seyon" below.
 
 ## Done (commit `2f91194`)
 
