@@ -28,57 +28,73 @@ unattended run, intended for overnight.
 
 ## Loop progress (live — gauntlet loop 6 running)
 
-- [x] **Task 1 — the model.** `src/lib/richtext/model.js` ported verbatim from the
-      prototype's `RT` module; all 30 tests ported to `node:test` in
-      `model.test.js` (incl. the 400-iteration fuzz). `npm run test:richtext`
-      green, 30/30. Commit `cc39b35`.
+- [x] **Task 1 — the model.** `src/lib/richtext/model.js` ported verbatim from
+      the prototype's `RT` module; all 30 tests ported to `node:test` in
+      `model.test.js` (incl. the 400-iteration fuzz). Commit `cc39b35`.
 - [x] **Task 2 — text measurement.** `src/lib/richtext/measure.js`. Verified the
-      `FONT_FAMILY` id→name inversion statically against the shipped bundle
-      (`{Virgil:1,…,Excalifont:5,…}`), so `fontString(20, 5)` resolves to
-      `20px Excalifont, …`. Extended the fallback chain to mirror Excalidraw's
-      own (`Xiaolai, Segoe UI Emoji` for Excalifont) — a shorter chain than the
-      renderer uses puts our line breaks out of step on non-Latin text.
-      Commit `61e4bf8`. The in-app devtools check folds into the Task 7/8 E2E run.
-- [x] **Task 3 — layout.** `src/lib/richtext/layout.js` + 8 tests, written
-      test-first. Two fixes on top of the plan's draft implementation, both
-      found by its own tests: an unbreakable word wider than a line (including
-      an over-wide boxed run falling through) never broke, so layout now breaks
-      per character the way Excalidraw does; and a breakout indent wider than
-      the element left nothing to lay out into, now clamped. Added the layout
-      analogue of the model fuzz — 200 random docs at random widths must
-      reassemble to exactly the source text, with a line-count ceiling to catch
-      a non-consuming loop. `test:richtext` 38/38, `test:mcp` 93/93,
-      `cargo test` 11/11.
-- [x] **Task 4 — element generation.** `src/lib/richtext/elements.js` + 11
-      tests, written test-first. Found a defect that only shows up across two
-      pieces: element generation re-derived box padding from `run.box`, but a
-      boxed run too wide to fit falls through layout's character-breaking path
-      and its width carries no padding — so those fragments were drawn inset by
-      6px on each side with a 12px-short text width. Layout now records
-      `padding` on the fragment and generation trusts it. Also made the
-      highlight bleed symmetric (it was 2px taller above than below). Pinned
-      both non-negotiables here: the model survives `JSON.parse(JSON.stringify())`,
-      which is exactly the trip it makes through the file, and the text elements
-      reassemble to the model's text with nothing lost.
-      `test:richtext` 49/49, `test:mcp` 93/93, `cargo test` 11/11.
+      `FONT_FAMILY` id→name inversion against the shipped bundle
+      (`{Virgil:1,…,Excalifont:5,…}`). Extended the fallback chain to mirror
+      Excalidraw's own (`Xiaolai, Segoe UI Emoji` for Excalifont) — a shorter
+      chain than the renderer uses puts our line breaks out of step on
+      non-Latin text. Commit `61e4bf8`. The in-app devtools check folds into
+      the Task 7/8 app run.
+- [x] **Task 3 — layout.** `src/lib/richtext/layout.js` + tests, written
+      test-first. Two fixes on top of the plan's draft, both found by its own
+      tests: an unbreakable word wider than a line (including an over-wide
+      boxed run falling through) never broke, so layout now breaks per
+      character the way Excalidraw does; and a breakout indent wider than the
+      element left nothing to lay out into, now clamped. Added the layout
+      analogue of the model fuzz. Commit `370a7f5`.
+- [x] **Task 4 — element generation.** `src/lib/richtext/elements.js` + tests.
+      Found a defect that only exists across two pieces: generation re-derived
+      box padding from `run.box`, but a boxed run too wide to fit falls through
+      layout's character-breaking path and its width carries no padding — those
+      fragments were drawn inset 6px each side with a 12px-short text width.
+      Layout now records `padding` on the fragment and generation trusts it.
+      Highlight bleed made symmetric. Both non-negotiables pinned here: the
+      model survives `JSON.parse(JSON.stringify())`, exactly the trip it makes
+      through the file, and the text elements reassemble to the model's text.
+      Commit `4ac98ad`.
 - [x] **Task 5 — the emphasis bubble.** `src/components/EmphasisBubble.jsx`
       + `.css`, presentational, raises `onAction` and nothing else. Added edge
       handling the plan's draft did not have: a selection near the top of the
       canvas left no room above it and the bubble rendered off-screen, and one
       near a side edge pushed the centred bubble out of view. It now measures
       itself and flips below or clamps horizontally, which is what Figma's own
-      bar does. `aria-pressed` on the toggles, and `active` defaults to `[]`.
-- [ ] **Task 6 — the editing overlay** ← next (in progress)
+      bar does. Commit `2fb19f1`.
+- [x] **Layout fix forced by Task 6.** Pressing Enter puts a real `\n` into the
+      run's text, but layout treated it as ordinary whitespace — it only broke
+      the canvas line when it happened to overflow, so the text elements either
+      side would have sat on top of each other. Layout now breaks at an
+      explicit newline and marks the line `hardBreak`, which tells a reader
+      where to put the character back; no fragment ever carries a `\n`, since
+      each canvas line is its own text element. The layout fuzz now includes
+      newlines and blank lines. Commit `70877a9`.
+- [x] **Task 6 — the editing overlay.** `src/components/RichTextOverlay.jsx`
+      + `.css`. Every `beforeinput` is prevented and applied to the model, with
+      the `default` branch refusing anything unmodelled; offsets↔DOM, sticky
+      mode, the markdown triggers, the keyboard map and undo/redo all ported.
+      Commit `d7198b8`.
 
-      Starting it surfaced a defect in layout that had to be fixed first:
-      pressing Enter puts a real `\n` into the run's text, but layout treated
-      it as ordinary whitespace, so it only broke the canvas line when it
-      happened to overflow — the text elements either side would have sat on
-      top of each other. Layout now breaks at an explicit newline and marks the
-      line `hardBreak`, so a reader knows where to put the character back; no
-      fragment ever carries a `\n`, since each canvas line is its own text
-      element. The layout fuzz now includes newlines and blank lines.
-      `test:richtext` 53/53.
+      Deviation from the plan, deliberately: the plan says render the editable
+      DOM declaratively from React state. React reconciling the children of a
+      `contenteditable` is the same class of hazard that produced the v2
+      character-destroying bug, approached from the other side. React owns
+      *when* to render; the DOM build stays the prototype's exact imperative
+      `replaceChildren`. Behaviour is what the plan asked to preserve.
+
+      One contract change: the overlay ends by calling exactly one of
+      `onCommit(doc)` or `onCancel()` — cancel when nothing changed, so an edit
+      that changed nothing costs the caller no scene update and no undo step.
+
+      **Not yet verified in the app.** The plan's hand-verification table needs
+      the overlay mounted, which is Task 7. Verifying it in a synthetic page
+      would be weaker evidence than the real thing and throwaway work, so the
+      whole table folds into the app run — that is where this piece's critic
+      pass happens.
+- [ ] **Task 7 — wire it into the app** ← next
+- [ ] Task 8 — round-trip and interaction tests
+- [ ] Task 9 — README
 
 **Flagged for Seyon, not changed:** the plan stores the whole model in
 `customData` on *every* generated element, deliberately, so any surviving
@@ -87,12 +103,6 @@ copies of the model into the `.excalidraw` file. It is a settled design
 decision, so the loop is not touching it — but if file size matters, storing it
 on the first text element only (with `richTextId` still on all) is the obvious
 reduction. Worth a look at Task 8 when there are real files to measure.
-- [ ] Task 4 — element generation
-- [ ] Task 5 — the emphasis bubble
-- [ ] Task 6 — the editing overlay
-- [ ] Task 7 — wire it into the app
-- [ ] Task 8 — round-trip and interaction tests
-- [ ] Task 9 — README
 
 ## Notes for whoever picks this up
 

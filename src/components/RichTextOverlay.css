@@ -1,0 +1,35 @@
+.richtext-overlay {
+  position: absolute;
+  outline: none;
+  white-space: pre-wrap;
+  transform-origin: top left;
+  z-index: 15;
+}
+.richtext-overlay .blk { min-height: 1em; }
+.richtext-overlay .breakout { margin: 0.7em 0; padding-left: 12px; border-left: 3px solid currentColor; }
+.richtext-overlay .hl { background: #ffec99; box-decoration-break: clone; padding: 1px 3px; border-radius: 2px; }
+.richtext-overlay .ul { border-bottom: 2px solid currentColor; }
+.richtext-overlay .box {
+  border: 1.5px solid currentColor; border-radius: 4px; padding: 1px 5px;
+  white-space: nowrap; box-decoration-break: clone;
+}
+.richtext-overlay .box.too-wide { white-space: pre-wrap; padding-left: 0; padding-right: 0; }
+
+.richtext-overlay .c-blue { color: #1971c2; }
+.richtext-overlay .c-red { color: #e03131; }
+.richtext-overlay .c-green { color: #2f9e44; }
+.richtext-overlay .c-orange { color: #f08c00; }
+
+.richtext-sticky {
+  position: absolute;
+  z-index: 20;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #2b2926;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

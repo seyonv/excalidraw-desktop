@@ -698,7 +698,7 @@ A fully controlled `contenteditable`. Port the `editor()` IIFE from the prototyp
 - Consumes: `model.js`.
 - Produces: `<RichTextOverlay doc={doc} style={{left,top,fontSize,fontFamily,lineHeight,maxWidth,zoom}} onCommit={(doc) => void} onCancel={() => void} />`
 
-- [ ] **Step 1: Port the controlled editor**
+- [x] **Step 1: Port the controlled editor**
 
 From `docs/prototypes/inline-emphasis/prototype.html`, the `editor()` IIFE. Port these pieces unchanged in behaviour, into a component whose `doc` lives in `useState` and whose DOM is rendered from it:
 
@@ -716,7 +716,7 @@ From `docs/prototypes/inline-emphasis/prototype.html`, the `editor()` IIFE. Port
 
 Wire the emphasis actions through one `apply(act)` that reads the selection, and — when the selection is collapsed — toggles sticky mode instead.
 
-- [ ] **Step 2: Style the overlay to match the canvas**
+- [x] **Step 2: Style the overlay to match the canvas**
 
 ```css
 .richtext-overlay {
@@ -754,7 +754,7 @@ Run `npm run tauri dev`, mount the overlay temporarily on load with a hardcoded 
 | `Esc` with sticky on | Chip clears, text stays |
 | `⌘\` on a styled selection | Everything strips to plain |
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git checkout -- public/
