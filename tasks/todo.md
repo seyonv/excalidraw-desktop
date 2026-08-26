@@ -61,7 +61,14 @@ unattended run, intended for overnight.
       which is exactly the trip it makes through the file, and the text elements
       reassemble to the model's text with nothing lost.
       `test:richtext` 49/49, `test:mcp` 93/93, `cargo test` 11/11.
-- [ ] **Task 5 — the emphasis bubble** ← next
+- [x] **Task 5 — the emphasis bubble.** `src/components/EmphasisBubble.jsx`
+      + `.css`, presentational, raises `onAction` and nothing else. Added edge
+      handling the plan's draft did not have: a selection near the top of the
+      canvas left no room above it and the bubble rendered off-screen, and one
+      near a side edge pushed the centred bubble out of view. It now measures
+      itself and flips below or clamps horizontally, which is what Figma's own
+      bar does. `aria-pressed` on the toggles, and `active` defaults to `[]`.
+- [ ] **Task 6 — the editing overlay** ← next
 
 **Flagged for Seyon, not changed:** the plan stores the whole model in
 `customData` on *every* generated element, deliberately, so any surviving

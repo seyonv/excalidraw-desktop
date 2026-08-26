@@ -573,7 +573,7 @@ Presentational only. It renders buttons and raises `onAction`; it never touches 
 - Consumes: nothing from earlier tasks.
 - Produces: `<EmphasisBubble rect={{left,top,width}} active={string[]} dirty={boolean} onAction={(act) => void} />`
 
-- [ ] **Step 1: Write the component**
+- [x] **Step 1: Write the component**
 
 `rect` is the selection rectangle in canvas-container coordinates. `active` is the list of acts already applied across the whole selection; `dirty` is whether anything is applied at all.
 
@@ -637,7 +637,7 @@ export default function EmphasisBubble({ rect, active, dirty, onAction }) {
 }
 ```
 
-- [ ] **Step 2: Write the stylesheet**
+- [x] **Step 2: Write the stylesheet**
 
 ```css
 .emphasis-bubble {
@@ -676,7 +676,7 @@ export default function EmphasisBubble({ rect, active, dirty, onAction }) {
 .emphasis-bubble .dot.plain { background: #1e1e1e; box-shadow: inset 0 0 0 1px #ffffff55; }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git checkout -- public/
