@@ -31,8 +31,19 @@ function common(overrides) {
 }
 
 export function toElements(doc, laidOut, base) {
-  const { x: originX, y: originY, id, fontSize, fontFamily, lineHeight, strokeColor, groupId } = base;
-  const meta = { richTextId: id, richText: { id, blocks: doc } };
+  const { x: originX, y: originY, id, fontSize, fontFamily, lineHeight, strokeColor, groupId, maxWidth } = base;
+  // The base travels with the model. Reopening a block has to lay it out at the
+  // same width from the same origin, and neither can be recovered from the
+  // generated elements: a highlight bleeds 2px left of the origin, and a block
+  // that happens not to wrap says nothing about the width it was wrapped to.
+  const meta = {
+    richTextId: id,
+    richText: {
+      id,
+      blocks: doc,
+      base: { x: originX, y: originY, maxWidth, fontSize, fontFamily, lineHeight, strokeColor },
+    },
+  };
   const behind = [];
   const front = [];
 
@@ -101,7 +112,7 @@ export function toElements(doc, laidOut, base) {
 export const isRichText = (element) => Boolean(element?.customData?.richTextId);
 
 /** The model is stored identically on every generated element, so any survivor
- *  can rebuild the block. Returns the first one found. */
+ *  can rebuild the block. Returns the first one found, as `{ id, blocks, base }`. */
 export function readModel(elements) {
   for (const el of elements) {
     if (el?.customData?.richText?.blocks) return el.customData.richText;

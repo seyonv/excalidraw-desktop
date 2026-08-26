@@ -11,7 +11,10 @@ const CLS_FOR_COLOUR = Object.fromEntries(
 const LABEL = { "c-blue": "blue", "c-red": "red", "c-green": "green", "c-orange": "orange",
                 hl: "highlight", ul: "underline", box: "box" };
 
-const KEYS = { b: "c-blue", 1: "c-red", 2: "c-green", 3: "c-orange", h: "hl", u: "ul", e: "box" };
+/** The emphasis shortcuts, keyed by the character pressed with ⌘/Ctrl. Exported
+ *  because the app uses the same map to convert a plain text element. */
+export const ACT_FOR_KEY = { b: "c-blue", 1: "c-red", 2: "c-green", 3: "c-orange",
+                             h: "hl", u: "ul", e: "box" };
 
 const TRIGGERS = [
   { re: /\*\*([^*]+)\*\*$/, act: "c-blue" },
@@ -32,7 +35,7 @@ const MARK_ACTS = ["hl", "ul", "box"];
  * exactly as the prototype builds it. Letting React reconcile the children of a
  * contenteditable reintroduces the same class of hazard from the other side.
  */
-export default function RichTextOverlay({ doc: initialDoc, style, onCommit, onCancel }) {
+export default function RichTextOverlay({ doc: initialDoc, style, initialAct, onCommit, onCancel }) {
   const editorRef = useRef(null);
   const docRef = useRef(initialDoc);
   const selRef = useRef({ start: 0, end: 0 });
@@ -363,7 +366,7 @@ export default function RichTextOverlay({ doc: initialDoc, style, onCommit, onCa
         return;
       }
       if (k === "b" && e.shiftKey) { e.preventDefault(); apply("breakout"); return; }
-      const act = KEYS[k];
+      const act = ACT_FOR_KEY[k];
       if (!act) return;
       e.preventDefault();
       apply(act);
@@ -399,9 +402,12 @@ export default function RichTextOverlay({ doc: initialDoc, style, onCommit, onCa
   useEffect(() => {
     rebuild();
     editorRef.current?.focus();
+    // Whole block selected on entry, so the first action applies to all of it —
+    // and so a conversion started by a shortcut has something to act on.
     selRef.current = { start: 0, end: RT.docText(docRef.current).length };
     writeSelection();
-    refresh();
+    if (initialAct) apply(initialAct);
+    else refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

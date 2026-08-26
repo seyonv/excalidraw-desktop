@@ -773,7 +773,7 @@ git commit -m "Add controlled contenteditable overlay for rich text editing"
 - Consumes: everything above.
 - Produces: no exports — this is the integration point.
 
-- [ ] **Step 1: Open the overlay on demand**
+- [x] **Step 1: Open the overlay on demand**
 
 Add `const [editing, setEditing] = useState(null)` holding `{ doc, base, elementIds }`.
 
@@ -783,7 +783,7 @@ Open it when either happens:
 
 Compute `base` from the source element: `x`, `y`, `fontSize`, `fontFamily`, `lineHeight`, `strokeColor`, a fresh `groupId` and rich text `id`. Screen position comes from `sceneCoordsToViewportCoords`.
 
-- [ ] **Step 2: Hide the underlying elements while editing**
+- [x] **Step 2: Hide the underlying elements while editing**
 
 ```js
 api.updateScene({
@@ -794,7 +794,7 @@ api.updateScene({
 
 `NEVER` keeps this transient removal out of undo history, so the edit is one undo step rather than two.
 
-- [ ] **Step 3: Commit the edit back to the scene**
+- [x] **Step 3: Commit the edit back to the scene**
 
 ```js
 const commit = useCallback(async (doc) => {
@@ -820,7 +820,7 @@ const commit = useCallback(async (doc) => {
 
 `IMMEDIATELY` makes the whole edit one undo step. **Do not touch `sceneKey`** — bumping it remounts Excalidraw and throws away scroll and zoom.
 
-- [ ] **Step 4: Keep the overlay glued to the canvas**
+- [x] **Step 4: Keep the overlay glued to the canvas**
 
 Subscribe with `apiRef.current.onScrollChange` and recompute the overlay's
 `left`/`top` from `sceneCoordsToViewportCoords` plus its `scale(zoom)` on every
@@ -834,7 +834,7 @@ overlay on scroll or zoom — an edit that ends cleanly beats one that drifts.
 
 Run `npm run tauri dev`. Edit a rich block, commit, wait for the autosave debounce (600ms), then confirm in the library directory that the `.excalidraw` file contains the new elements and that the app does **not** show the "changed on disk" notice. That notice appearing would mean the write was not recognised as our own echo — `lastWrittenRef` records before awaiting the write, and that ordering must stay.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git checkout -- public/

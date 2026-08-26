@@ -92,9 +92,40 @@ unattended run, intended for overnight.
       would be weaker evidence than the real thing and throwaway work, so the
       whole table folds into the app run — that is where this piece's critic
       pass happens.
-- [ ] **Task 7 — wire it into the app** ← next
-- [ ] Task 8 — round-trip and interaction tests
-- [ ] Task 9 — README
+- [x] **Task 7 — wire it into the app** (code landed, *not yet verified*).
+      `App.jsx` opens the overlay on double-click of a rich block, or on an
+      emphasis shortcut with a single plain text element selected; hides the
+      underlying elements with `CaptureUpdateAction.NEVER` and commits with
+      `IMMEDIATELY`, so the whole edit is one undo step; tracks pan and zoom
+      through `onScrollChange`. `sceneKey` is untouched.
+
+      Three things the plan's sketch did not cover, all of which would have
+      lost work:
+      - A cancelled edit had nothing to restore. `openEditor` now stashes the
+        exact elements it removed, and cancel puts them back.
+      - Autosave fires on the transient removal, so the file would have been
+        written *without* the block being edited — quitting mid-edit would have
+        lost it. `handleChange` now returns early while an edit is open, and
+        `commitEditing` clears the flag before `updateScene` so the finished
+        edit still saves.
+      - Reopening a block could not reproduce its own wrap width or origin: a
+        highlight bleeds 2px left of the origin, and a block that happens not
+        to wrap says nothing about the width it was wrapped to. The base now
+        travels with the model in `customData`.
+
+- [ ] **Task 8 — verification and round-trip tests** ← next
+
+      **This is the critic pass for Tasks 5, 6 and 7 together**, none of which
+      has been driven in a running app yet. Blocker found: `src/lib/drawings.js`
+      calls Tauri `invoke` with no web fallback, so the app cannot bootstrap in
+      a plain browser and the plan's `e2e-app.sh` against `localhost:1420`
+      cannot work as written. The contained fix is a dev-only Vite entry that
+      mounts real Excalidraw plus the real overlay without the drawings layer —
+      a test harness, never shipped — and to run the ported assertions against
+      that. The file-write path itself is unchanged code and the round trip is
+      already pinned by the JSON tests.
+- [ ] Task 9 — README (lands with the verified feature, not before — there is
+      no user-facing behaviour to document until it is shown to work)
 
 **Flagged for Seyon, not changed:** the plan stores the whole model in
 `customData` on *every* generated element, deliberately, so any surviving

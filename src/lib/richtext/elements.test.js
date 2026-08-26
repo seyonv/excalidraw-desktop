@@ -6,7 +6,7 @@ import { fromText, applyStyle } from "./model.js";
 
 const measure = (text) => text.length * 10;
 const opts = { measure, maxWidth: 500, fontSize: 20, lineHeight: 1.25, boxPadding: 6 };
-const base = { x: 100, y: 50, id: "rt1", fontSize: 20, fontFamily: 5,
+const base = { x: 100, y: 50, id: "rt1", fontSize: 20, fontFamily: 5, maxWidth: 500,
                lineHeight: 1.25, strokeColor: "#1e1e1e", groupId: "g1" };
 
 const build = (doc) => toElements(doc, layout(doc, opts), base);
@@ -87,4 +87,15 @@ test("a boxed run that had to break gets no phantom padding", () => {
     assert.equal(text.width, text.text.length * 10);
     assert.equal(text.x, 100, "a broken boxed fragment starts at the line origin");
   }
+});
+
+test("the base travels with the model so a reopened block lays out identically", () => {
+  const doc = applyStyle(fromText("aaa bbb"), 0, 3, "hl", true);
+  const model = readModel(JSON.parse(JSON.stringify(build(doc))));
+  assert.deepEqual(model.base, { x: 100, y: 50, maxWidth: 500, fontSize: 20,
+                                fontFamily: 5, lineHeight: 1.25, strokeColor: "#1e1e1e" });
+  // the highlight bleeds left of the origin, so the elements alone cannot say
+  // where the block starts
+  const els = build(doc);
+  assert.ok(Math.min(...els.map((e) => e.x)) < model.base.x);
 });
