@@ -113,19 +113,41 @@ unattended run, intended for overnight.
         to wrap says nothing about the width it was wrapped to. The base now
         travels with the model in `customData`.
 
-- [ ] **Task 8 — verification and round-trip tests** ← next
+- [x] **Task 8 — browser verification of the overlay.** The plan's `e2e-app.sh`
+      against `localhost:1420` could not work: `drawings.js` calls Tauri
+      `invoke` with no web fallback, so the app cannot bootstrap in a browser,
+      and stubbing `invoke` in production code for a test is not worth it.
+      Instead: `dev/richtext-harness.{html,jsx}` mounts the **real** overlay on
+      its own, `dev/harness.js` reads the model back **out of the rendered DOM**
+      (render is a pure function of the model, so this asserts on what the user
+      actually sees), and `dev/e2e-overlay.sh` drives it with real keyboard and
+      typing events. `npm run test:overlay`. The `dev/` entry is never shipped —
+      `vite build` takes only `index.html`, confirmed against `dist/`.
 
-      **This is the critic pass for Tasks 5, 6 and 7 together**, none of which
-      has been driven in a running app yet. Blocker found: `src/lib/drawings.js`
-      calls Tauri `invoke` with no web fallback, so the app cannot bootstrap in
-      a plain browser and the plan's `e2e-app.sh` against `localhost:1420`
-      cannot work as written. The contained fix is a dev-only Vite entry that
-      mounts real Excalidraw plus the real overlay without the drawings layer —
-      a test harness, never shipped — and to run the ported assertions against
-      that. The file-write path itself is unchanged code and the round trip is
-      already pinned by the JSON tests.
-- [ ] Task 9 — README (lands with the verified feature, not before — there is
-      no user-facing behaviour to document until it is shown to work)
+      **36 assertions, all passing**, ported from the prototype's suite rather
+      than rewritten, because they encode real bugs: the colour toggle round
+      trip, `⌘\` on a mixed selection, typing/Enter/Backspace around a line
+      break, the v2 regression (styling *across* a break losing characters),
+      deleting across a break, both markdown triggers, sticky mode on and off,
+      breakout producing three blocks with every character intact, undo, the
+      bubble showing for a selection but not a caret, and no console errors.
+
+      Two added beyond the port: the character-loss non-negotiable driven
+      through actual keystrokes (interleaved typing, newline and deletion, with
+      every character accounted for exactly), and the commit/cancel contract
+      (an unchanged edit reports a cancel; a changed one commits the edited doc).
+
+- [ ] **Task 9 — README** ← next, with the remaining verification below
+
+**Still unverified, and it needs a human:** everything that requires Excalidraw
+itself — double-click to open a rich block, the commit path writing generated
+elements back into the scene, pan/zoom tracking, and the autosave echo check.
+That surface only exists inside the Tauri window, whose webview cannot be
+driven from here. The double-click interception was checked structurally
+instead: Excalidraw's handler is a React `onDoubleClick`, dispatched at the
+React root on the bubble phase, so a capture-phase listener on `.canvas-area`
+does run first and `stopPropagation` does prevent it. That is reasoning, not
+evidence — it wants one manual `npm run tauri dev` pass.
 
 **Flagged for Seyon, not changed:** the plan stores the whole model in
 `customData` on *every* generated element, deliberately, so any surviving

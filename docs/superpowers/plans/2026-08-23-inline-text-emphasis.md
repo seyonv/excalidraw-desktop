@@ -739,7 +739,7 @@ Wire the emphasis actions through one `apply(act)` that reads the selection, and
 
 Apply the caller's font via inline style, and `transform: scale(zoom)` so the overlay tracks Excalidraw's zoom. Set `left`/`top` from `sceneCoordsToViewportCoords`.
 
-- [ ] **Step 3: Verify by hand**
+- [x] **Step 3: Verify by hand** — automated instead, see `dev/e2e-overlay.sh`
 
 Run `npm run tauri dev`, mount the overlay temporarily on load with a hardcoded doc, then check every row of this table:
 
@@ -884,11 +884,11 @@ test("no character is lost between model and rendered elements", () => {
 Run: `npm run test:richtext`
 Expected: PASS. If the second test fails, layout is dropping or duplicating text at a wrap point — fix `layout.js`, not the test.
 
-- [ ] **Step 3: Adapt the browser suite to the real app**
+- [x] **Step 3: Adapt the browser suite to the real app**
 
 Copy `docs/prototypes/inline-emphasis/e2e.sh` to `e2e-app.sh` and repoint it: `goto http://localhost:1420` (the Vite dev server) instead of the prototype URL, and replace `window.__select` / `window.__runs` with equivalents that drive the real overlay — select via the overlay's DOM, and read the model from the committed elements with `readModel`. Keep every assertion; they encode real bugs.
 
-- [ ] **Step 4: Run both suites**
+- [x] **Step 4: Run both suites**
 
 ```bash
 npm run test:richtext
