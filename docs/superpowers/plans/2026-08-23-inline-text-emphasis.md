@@ -112,7 +112,7 @@ Isolates everything that needs a browser or the Excalidraw package, so layout ca
   - `canvasMeasure(fontSize, fontFamily) -> (text) => number` — a measure function bound to a font
   - `fontsReady() -> Promise<void>`
 
-- [ ] **Step 1: Write the module**
+- [x] **Step 1: Write the module**
 
 ```js
 import { FONT_FAMILY } from "@excalidraw/excalidraw";
@@ -149,7 +149,7 @@ export function fontsReady() {
 }
 ```
 
-- [ ] **Step 2: Verify it loads in the app**
+- [x] **Step 2: Verify it loads in the app**
 
 Run: `npm run tauri dev`, and in the devtools console:
 
@@ -159,7 +159,7 @@ Run: `npm run tauri dev`, and in the devtools console:
 
 Expected: a string of the form `"20px <FamilyName>, Segoe UI Emoji"`. Any family name is fine — the point is that the id → name inversion resolved rather than falling through to the default.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git checkout -- public/
@@ -183,7 +183,7 @@ Turns a model plus a width into positioned line fragments. Takes its measure fun
   `opts = { measure, maxWidth, fontSize, lineHeight, boxPadding }` and
   `lines = [{ y, height, type, indent, fragments: [{ run, text, x, width }] }]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 import { test } from "node:test";
@@ -249,12 +249,12 @@ test("reports total height as the last line's bottom", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm run test:richtext`
 Expected: FAIL — `Cannot find module './layout.js'`.
 
-- [ ] **Step 3: Implement layout**
+- [x] **Step 3: Implement layout**
 
 ```js
 import { blockSpans } from "./model.js";
@@ -329,12 +329,12 @@ export function layout(doc, opts) {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run test:richtext`
 Expected: all layout tests pass alongside the 30 model tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git checkout -- public/

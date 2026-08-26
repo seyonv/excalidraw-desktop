@@ -39,7 +39,17 @@ unattended run, intended for overnight.
       own (`Xiaolai, Segoe UI Emoji` for Excalifont) — a shorter chain than the
       renderer uses puts our line breaks out of step on non-Latin text.
       Commit `61e4bf8`. The in-app devtools check folds into the Task 7/8 E2E run.
-- [ ] **Task 3 — layout** ← next
+- [x] **Task 3 — layout.** `src/lib/richtext/layout.js` + 8 tests, written
+      test-first. Two fixes on top of the plan's draft implementation, both
+      found by its own tests: an unbreakable word wider than a line (including
+      an over-wide boxed run falling through) never broke, so layout now breaks
+      per character the way Excalidraw does; and a breakout indent wider than
+      the element left nothing to lay out into, now clamped. Added the layout
+      analogue of the model fuzz — 200 random docs at random widths must
+      reassemble to exactly the source text, with a line-count ceiling to catch
+      a non-consuming loop. `test:richtext` 38/38, `test:mcp` 93/93,
+      `cargo test` 11/11.
+- [ ] **Task 4 — element generation** ← next
 - [ ] Task 4 — element generation
 - [ ] Task 5 — the emphasis bubble
 - [ ] Task 6 — the editing overlay
