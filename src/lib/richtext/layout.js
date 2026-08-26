@@ -39,30 +39,34 @@ export function layout(doc, opts) {
       x += width;
     };
 
-    const flush = () => {
-      lines.push({ y, height: lineHeightPx, type: block.type, indent, fragments });
+    // `hard` marks a line ended by an explicit newline in the text rather than
+    // by wrapping. The newline itself is not carried into any fragment — each
+    // canvas line is its own text element — so this is what tells a reader
+    // where to put it back.
+    const flush = (hard = false) => {
+      lines.push({ y, height: lineHeightPx, type: block.type, indent, fragments, hardBreak: hard });
       y += lineHeightPx;
       fragments = [];
       x = 0;
     };
 
-    for (const run of block.runs) {
+    function placeSegment(run, text) {
       // A box implies one enclosed thing, so a boxed run is placed whole unless
       // it cannot possibly fit on a line of its own.
       if (run.box) {
-        const width = measure(run.text) + boxPadding * 2;
+        const width = measure(text) + boxPadding * 2;
         if (width <= available) {
           if (x + width > available && fragments.length) flush();
           // padding travels with the fragment so element generation does not
           // have to guess whether this width includes it
-          fragments.push({ run, text: run.text, x, width, padding: boxPadding });
+          fragments.push({ run, text, x, width, padding: boxPadding });
           x += width;
-          continue;
+          return;
         }
         // Wider than a whole line: fall through and break it like normal text.
       }
 
-      for (const word of words(run.text)) {
+      for (const word of words(text)) {
         const width = measure(word);
         if (x + width > available && fragments.length) flush();
         if (width <= available) { place(run, word, width); continue; }
@@ -83,8 +87,20 @@ export function layout(doc, opts) {
       }
     }
 
+    for (const run of block.runs) {
+      // Enter inserts a real newline into the run's text, and it has to break
+      // the canvas line too — laid out as ordinary whitespace it would only
+      // wrap when it happened to overflow, and the text elements either side
+      // would sit on top of each other.
+      const segments = run.text.split("\n");
+      for (let i = 0; i < segments.length; i++) {
+        if (i > 0) flush(true);
+        placeSegment(run, segments[i]);
+      }
+    }
+
     if (fragments.length) flush();
-    else { lines.push({ y, height: lineHeightPx, type: block.type, indent, fragments: [] }); y += lineHeightPx; }
+    else { lines.push({ y, height: lineHeightPx, type: block.type, indent, fragments: [], hardBreak: false }); y += lineHeightPx; }
 
     if (block.type === "breakout") y += lineHeightPx * BREAKOUT_GAP;
   }

@@ -66,7 +66,7 @@ test("fuzz: fragments reassemble into exactly the block's text", () => {
   const acts = ["c-blue", "c-red", "hl", "ul", "box"];
   let seed = 7;
   const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
-  const source = "the quick brown fox jumps over the lazy dog supercalifragilistic  x";
+  const source = "the quick brown\nfox jumps over the lazy dog\n\nsupercalifragilistic  x";
 
   for (let i = 0; i < 200; i++) {
     let d = fromText(source.slice(0, 1 + rnd(source.length)));
@@ -83,7 +83,10 @@ test("fuzz: fragments reassemble into exactly the block's text", () => {
     // Lines carry no block index, so compare the whole document at once: every
     // fragment in order must reassemble the concatenation of every run.
     const want = d.map((block) => block.runs.map((r) => r.text).join("")).join("");
-    const got = lines.map((l) => l.fragments.map((f) => f.text).join("")).join("");
+    // a hard-broken line ate an explicit newline; a soft-wrapped one ate nothing
+    const got = lines
+      .map((l) => l.fragments.map((f) => f.text).join("") + (l.hardBreak ? "\n" : ""))
+      .join("");
     assert.equal(got, want,
       `iteration ${i} at maxWidth ${maxWidth}: layout changed the text`);
     assert.ok(height >= 0);
@@ -91,5 +94,32 @@ test("fuzz: fragments reassemble into exactly the block's text", () => {
     // consuming input
     assert.ok(lines.length <= want.length + d.length + 1,
       `iteration ${i} at maxWidth ${maxWidth}: ${lines.length} lines for ${want.length} characters`);
+  }
+});
+
+/* ---------- explicit newlines ---------- */
+
+test("an explicit newline breaks the line", () => {
+  const { lines } = layout(fromText("aa\nbb"), { ...opts, maxWidth: 500 });
+  assert.deepEqual(lines.map((l) => l.fragments.map((f) => f.text).join("")), ["aa", "bb"]);
+  assert.equal(lines[0].hardBreak, true);
+  assert.equal(lines[1].hardBreak, false);
+});
+
+test("a blank line survives as an empty line", () => {
+  const { lines } = layout(fromText("aa\n\nbb"), { ...opts, maxWidth: 500 });
+  assert.deepEqual(lines.map((l) => l.fragments.map((f) => f.text).join("")), ["aa", "", "bb"]);
+});
+
+test("a trailing newline leaves an empty last line", () => {
+  const { lines } = layout(fromText("aa\n"), { ...opts, maxWidth: 500 });
+  assert.equal(lines.length, 2);
+  assert.deepEqual(lines[1].fragments, []);
+});
+
+test("no text element ever carries a newline", () => {
+  const { lines } = layout(fromText("aa\nbb cc\ndd"), opts);
+  for (const line of lines) {
+    for (const frag of line.fragments) assert.ok(!frag.text.includes("\n"));
   }
 });

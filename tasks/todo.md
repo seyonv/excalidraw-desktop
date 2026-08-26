@@ -68,7 +68,17 @@ unattended run, intended for overnight.
       near a side edge pushed the centred bubble out of view. It now measures
       itself and flips below or clamps horizontally, which is what Figma's own
       bar does. `aria-pressed` on the toggles, and `active` defaults to `[]`.
-- [ ] **Task 6 — the editing overlay** ← next
+- [ ] **Task 6 — the editing overlay** ← next (in progress)
+
+      Starting it surfaced a defect in layout that had to be fixed first:
+      pressing Enter puts a real `\n` into the run's text, but layout treated
+      it as ordinary whitespace, so it only broke the canvas line when it
+      happened to overflow — the text elements either side would have sat on
+      top of each other. Layout now breaks at an explicit newline and marks the
+      line `hardBreak`, so a reader knows where to put the character back; no
+      fragment ever carries a `\n`, since each canvas line is its own text
+      element. The layout fuzz now includes newlines and blank lines.
+      `test:richtext` 53/53.
 
 **Flagged for Seyon, not changed:** the plan stores the whole model in
 `customData` on *every* generated element, deliberately, so any surviving
