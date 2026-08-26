@@ -56,9 +56,9 @@ On the web, a text block has exactly one colour. Here a single block can carry a
 different style per phrase, so a note can emphasise the word that matters instead
 of being split into separate elements to do it.
 
-Double-click a text block to edit it, select a phrase, and press a key. (An
-ordinary text element converts the first time you press one of these with it
-selected.)
+Double-click a text block to edit it, select a phrase, and press a key. Ordinary
+text converts the first time you do this — double-click it, or select it and
+press one of the shortcuts directly.
 
 | Emphasis                 | Shortcut |
 | ------------------------ | ----- |

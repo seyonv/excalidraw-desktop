@@ -26,6 +26,20 @@ const DOC = applyStyle(
   36, 51, "c-blue", true,
 );
 
+// A plain text element too, so the "select it and press an emphasis shortcut"
+// conversion path can be driven as well as the double-click path.
+const PLAIN = {
+  id: "plain-1", type: "text", x: 120, y: 320, width: 240, height: 25,
+  angle: 0, strokeColor: "#1e1e1e", backgroundColor: "transparent",
+  fillStyle: "solid", strokeWidth: 1, strokeStyle: "solid", roughness: 0,
+  opacity: 100, groupIds: [], frameId: null, index: null, roundness: null,
+  seed: 1, version: 1, versionNonce: 1, isDeleted: false, boundElements: null,
+  updated: 1, link: null, locked: false,
+  text: "plain text here", originalText: "plain text here",
+  fontSize: 20, fontFamily: 5, textAlign: "left", verticalAlign: "top",
+  containerId: null, lineHeight: 1.25, autoResize: true,
+};
+
 const INITIAL = toElements(
   DOC,
   layout(DOC, {
@@ -34,7 +48,7 @@ const INITIAL = toElements(
     lineHeight: BASE.lineHeight, boxPadding: 6,
   }),
   BASE,
-);
+).concat(PLAIN);
 
 function Harness() {
   const apiRef = useRef(null);

@@ -40,6 +40,15 @@
     return ev.defaultPrevented;
   };
 
+  /** Select the plain (non-rich) text element, as clicking it would. */
+  window.__selectPlain = () => {
+    api.updateScene({
+      elements: api.getSceneElements(),
+      appState: { ...api.getAppState(), selectedElementIds: { "plain-1": true } },
+    });
+    return Object.keys(api.getAppState().selectedElementIds).join(",");
+  };
+
   window.__overlayOpen = () => Boolean(document.querySelector(".richtext-overlay"));
 
   window.__overlayText = () => {

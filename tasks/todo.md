@@ -13,6 +13,13 @@
    disk" notice** should appear. That notice would mean the write was not
    recognised as our own echo.
 
+**Fixed 2026-08-26 from Seyon's first real run:** double-clicking an *ordinary*
+text element opened Excalidraw's own editor, not ours — the only way into the
+feature for plain text was `⌘B` with a selection, an invisible precondition that
+fails silently. Double-click now converts plain text too. The gap existed
+because the integration harness fixture only contained an already-rich block, so
+neither conversion path was ever driven; both are now pinned in `dev/e2e-app.sh`.
+
 Nothing else is outstanding. Everything below the app layer is proven by tests:
 `npm run test:richtext` (54), `npm run test:overlay` (36), `npm run test:app`
 (23), `npm run test:mcp` (93), `cd src-tauri && cargo test` (11). The two browser

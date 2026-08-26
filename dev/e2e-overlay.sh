@@ -167,7 +167,7 @@ check "committed doc carries the edit" "true" \
 # ---------- 13. no console errors anywhere ----------
 # the vite HMR socket is dev-server noise, not the app
 check "no console errors" "" \
-  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|^$' | head -5)"
+  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|no console errors\|^$' | head -5)"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

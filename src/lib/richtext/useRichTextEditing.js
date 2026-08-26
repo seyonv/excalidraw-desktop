@@ -44,6 +44,22 @@ export function useRichTextEditing({ apiRef, containerRef }) {
     return { left: x - box.left, top: y - box.top, zoom: appState.zoom.value };
   }, [apiRef, containerRef]);
 
+  /** The base for converting an ordinary text element into a rich one. */
+  const baseForPlain = useCallback((el) => {
+    const id = `rt-${el.id}`;
+    return {
+      id,
+      x: el.x,
+      y: el.y,
+      maxWidth: Math.max(el.width, el.fontSize * 4),
+      fontSize: el.fontSize,
+      fontFamily: el.fontFamily,
+      lineHeight: el.lineHeight ?? 1.25,
+      strokeColor: el.strokeColor,
+      groupId: `rtg-${id}`,
+    };
+  }, []);
+
   const openEditor = useCallback(
     (blocks, base, elementIds, initialAct) => {
       const api = apiRef.current;
@@ -116,24 +132,37 @@ export function useRichTextEditing({ apiRef, containerRef }) {
       const { selectedElementIds } = api.getAppState();
       const all = api.getSceneElements();
       const hit = all.find((el) => selectedElementIds[el.id] && isRichText(el));
-      if (!hit) return;
-      const richTextId = hit.customData.richTextId;
-      const group = all.filter((el) => el.customData?.richTextId === richTextId);
-      const model = readModel(group);
-      if (!model) return;
       // Stop it here: Excalidraw's own double-click handler is a bubble-phase
       // listener at the React root, so it never sees the event.
-      event.preventDefault();
-      event.stopPropagation();
-      openEditor(
-        model.blocks,
-        { ...model.base, id: richTextId, groupId: hit.groupIds?.[0] ?? `rtg-${richTextId}` },
-        group.map((el) => el.id),
+      const claim = () => { event.preventDefault(); event.stopPropagation(); };
+
+      if (hit) {
+        const richTextId = hit.customData.richTextId;
+        const group = all.filter((el) => el.customData?.richTextId === richTextId);
+        const model = readModel(group);
+        if (!model) return;
+        claim();
+        openEditor(
+          model.blocks,
+          { ...model.base, id: richTextId, groupId: hit.groupIds?.[0] ?? `rtg-${richTextId}` },
+          group.map((el) => el.id),
+        );
+        return;
+      }
+
+      // Double-clicking ordinary text converts it. Without this the only way in
+      // is a shortcut with an invisible precondition, and the gesture everyone
+      // actually reaches for opens Excalidraw's own editor instead.
+      const plain = all.find(
+        (el) => selectedElementIds[el.id] && el.type === "text" && !isRichText(el),
       );
+      if (!plain) return;
+      claim();
+      openEditor(fromText(plain.originalText ?? plain.text), baseForPlain(plain), [plain.id]);
     };
     area.addEventListener("dblclick", onDoubleClick, true);
     return () => area.removeEventListener("dblclick", onDoubleClick, true);
-  }, [openEditor]);
+  }, [openEditor, baseForPlain]);
 
   // An emphasis shortcut on a selected plain text element converts it.
   useEffect(() => {
@@ -150,27 +179,11 @@ export function useRichTextEditing({ apiRef, containerRef }) {
       const el = selected[0];
       if (el.type !== "text" || isRichText(el)) return;
       event.preventDefault();
-      const id = `rt-${el.id}`;
-      openEditor(
-        fromText(el.originalText ?? el.text),
-        {
-          id,
-          x: el.x,
-          y: el.y,
-          maxWidth: Math.max(el.width, el.fontSize * 4),
-          fontSize: el.fontSize,
-          fontFamily: el.fontFamily,
-          lineHeight: el.lineHeight ?? 1.25,
-          strokeColor: el.strokeColor,
-          groupId: `rtg-${id}`,
-        },
-        [el.id],
-        act,
-      );
+      openEditor(fromText(el.originalText ?? el.text), baseForPlain(el), [el.id], act);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [openEditor]);
+  }, [openEditor, baseForPlain]);
 
   // Panning or zooming mid-edit must not leave the editor over the wrong part
   // of the canvas.

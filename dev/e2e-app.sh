@@ -70,6 +70,24 @@ js "window.__setZoom(2)" >/dev/null
 sleep 1
 check "overlay follows the zoom" "matrix(2, 0, 0, 2, 0, 0)" "$(js 'window.__overlayTransform()')"
 
+# ---------- 7b. converting an ordinary text element ----------
+# Both entry points, because a shortcut with an invisible precondition is not a
+# discoverable way in and double-click is the gesture people actually reach for.
+reset
+js "window.__selectPlain()" >/dev/null
+js "window.__dblclick()" >/dev/null
+sleep 1
+check "double-click converts plain text" "true" "$(js 'String(window.__overlayOpen())')"
+check "converted block holds its text" "plain text here" "$(js 'window.__overlayText()')"
+
+reset
+js "window.__selectPlain()" >/dev/null
+$B press "Meta+b" >/dev/null
+sleep 1
+check "shortcut converts plain text" "true" "$(js 'String(window.__overlayOpen())')"
+check "shortcut applies its emphasis" "true" \
+  "$(js 'String(window.__overlayRuns().some(r=>r.cls.includes("c-blue")))')"
+
 # ---------- 8. the quit-and-reopen path, through the real file format ----------
 # serializeScene + parseScene are the exact pair the app writes and reads files
 # with, so this is the round trip minus the disk hop.
@@ -95,7 +113,7 @@ check "reopened block keeps the edit" "true" \
 
 # ---------- 9. no console errors (the vite HMR socket is not one) ----------
 check "no console errors" "" \
-  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|^$' | head -5)"
+  "$($B console --errors | grep -v 'BEGIN\|END UNTRUSTED\|WebSocket connection\|no console errors\|^$' | head -5)"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

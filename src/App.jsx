@@ -368,6 +368,9 @@ function App() {
             key={sceneKey}
             excalidrawAPI={(api) => {
               apiRef.current = api;
+              // Dev only: lets a devtools console inspect the live scene. Vite
+              // strips this from a production build.
+              if (import.meta.env.DEV) window.__excalidrawApi = api;
             }}
             initialData={scene}
             onChange={handleChange}
