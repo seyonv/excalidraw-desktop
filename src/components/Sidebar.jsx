@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./Sidebar.css";
+
+const REORDER_MS = 220;
 
 /**
  * Collapsible list of drawings. Purely presentational — every mutation is
@@ -23,10 +25,42 @@ function Sidebar({
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
   const inputRef = useRef(null);
+  const rowRefs = useRef(new Map());
+  const rowPositions = useRef(new Map());
 
   useEffect(() => {
     if (renaming) inputRef.current?.select();
   }, [renaming]);
+
+  // Recency sort reshuffles this list under the user's cursor — e.g.
+  // switching drawings autosaves the one just left, moving it in the
+  // ranking. React reorders the underlying DOM nodes instantly since they're
+  // keyed by name; a FLIP animation (measure the old position, then slide
+  // from there to the new one) is what turns that snap into a slide the eye
+  // can follow instead of a jarring jump.
+  useLayoutEffect(() => {
+    const nextPositions = new Map();
+    rowRefs.current.forEach((el, name) => {
+      nextPositions.set(name, el.getBoundingClientRect().top);
+    });
+
+    nextPositions.forEach((top, name) => {
+      const prevTop = rowPositions.current.get(name);
+      if (prevTop === undefined) return;
+      const delta = prevTop - top;
+      if (!delta) return;
+      const el = rowRefs.current.get(name);
+      el.style.transition = "none";
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect(); // force reflow before releasing the transition
+      requestAnimationFrame(() => {
+        el.style.transition = `transform ${REORDER_MS}ms ease`;
+        el.style.transform = "";
+      });
+    });
+
+    rowPositions.current = nextPositions;
+  }, [drawings]);
 
   // Any click outside a row's menu closes it.
   useEffect(() => {
@@ -35,6 +69,11 @@ function Sidebar({
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [menuFor]);
+
+  const rowRef = (name) => (el) => {
+    if (el) rowRefs.current.set(name, el);
+    else rowRefs.current.delete(name);
+  };
 
   const startRename = (name) => {
     setRenaming(name);
@@ -86,7 +125,7 @@ function Sidebar({
 
           if (renaming === drawing.name) {
             return (
-              <li key={drawing.name} className="drawing-row renaming">
+              <li key={drawing.name} ref={rowRef(drawing.name)} className="drawing-row renaming">
                 <input
                   ref={inputRef}
                   className="rename-input"
@@ -105,7 +144,7 @@ function Sidebar({
 
           if (confirmingDelete === drawing.name) {
             return (
-              <li key={drawing.name} className="drawing-row confirming">
+              <li key={drawing.name} ref={rowRef(drawing.name)} className="drawing-row confirming">
                 <span className="confirm-text">Delete?</span>
                 <button
                   className="confirm-yes"
@@ -129,6 +168,7 @@ function Sidebar({
           return (
             <li
               key={drawing.name}
+              ref={rowRef(drawing.name)}
               className={`drawing-row${isActive ? " active" : ""}`}
             >
               <button
