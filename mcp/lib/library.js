@@ -5,9 +5,18 @@ import { sanitize } from "./sanitize.js";
 
 const EXT = "excalidraw";
 
-/** `~/Documents/Excalidraw`, or wherever EXCALIDRAW_LIBRARY_DIR points. */
+/** Platform app-support root, mirroring `dirs_app_support_dir()` in
+ * src-tauri/src/lib.rs — must resolve to the same directory the Tauri app uses. */
+function appSupportDir() {
+  if (process.platform === "darwin") return join(homedir(), "Library", "Application Support");
+  if (process.platform === "win32") return process.env.APPDATA || join(homedir(), "AppData", "Roaming");
+  return process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
+}
+
+/** `~/Library/Application Support/Excalidraw` (and platform equivalents), or
+ * wherever EXCALIDRAW_LIBRARY_DIR points. */
 export function libraryDir() {
-  return process.env.EXCALIDRAW_LIBRARY_DIR || join(homedir(), "Documents", "Excalidraw");
+  return process.env.EXCALIDRAW_LIBRARY_DIR || join(appSupportDir(), "Excalidraw");
 }
 
 /** Resolves a name to a path guaranteed to sit directly inside the library.

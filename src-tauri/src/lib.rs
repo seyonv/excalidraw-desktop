@@ -47,34 +47,42 @@ struct Drawing {
     modified: u64,
 }
 
-/// `~/Documents/Excalidraw`, created on first use. Overridable with
-/// `EXCALIDRAW_LIBRARY_DIR` to relocate the library (also used by tests).
+/// `~/Library/Application Support/Excalidraw` (and platform equivalents),
+/// created on first use. Overridable with `EXCALIDRAW_LIBRARY_DIR` to
+/// relocate the library (also used by tests).
+///
+/// Deliberately NOT `~/Documents`: macOS gates that folder behind a TCC
+/// permission prompt, and an ad-hoc-signed dev build gets a new signature
+/// hash on every `cargo build`, so macOS treats each rebuild as a new app
+/// and re-prompts on every launch. App-support directories carry no such
+/// gate.
 fn library_dir() -> Result<PathBuf, String> {
     let dir = match std::env::var_os("EXCALIDRAW_LIBRARY_DIR") {
         Some(custom) => PathBuf::from(custom),
         None => {
-            let docs = dirs_document_dir().ok_or("could not locate the Documents directory")?;
-            docs.join("Excalidraw")
+            let support =
+                dirs_app_support_dir().ok_or("could not locate the app support directory")?;
+            support.join("Excalidraw")
         }
     };
     fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     Ok(dir)
 }
 
-fn dirs_document_dir() -> Option<PathBuf> {
+fn dirs_app_support_dir() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Documents"))
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support"))
     }
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join("Documents"))
+        std::env::var_os("APPDATA").map(PathBuf::from)
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        std::env::var_os("XDG_DOCUMENTS_DIR")
+        std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Documents")))
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
     }
 }
 

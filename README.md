@@ -27,7 +27,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 |                                  | Excalidraw web               | Excalidraw Desktop                                   |
 | -------------------------------- | ---------------------------- | ---------------------------------------------------- |
 | **Drawings open at once**        | One scene                    | A full library, switch in a click                    |
-| **Where work is stored**         | Browser localStorage         | Real `.excalidraw` files in `~/Documents/Excalidraw` |
+| **Where work is stored**         | Browser localStorage         | Real `.excalidraw` files in `~/Library/Application Support/Excalidraw` |
 | **Survives a cache clear**       | ✗                            | ✓ — they're files                                    |
 | **Rename / delete a drawing**    | Export and re-import by hand | Inline in the sidebar                                |
 | **Saving**                       | Manual export                | Autosaves as you draw                                |
@@ -95,7 +95,7 @@ else and the pixels are still right.
 ## Your drawings are just files
 
 ```
-~/Documents/Excalidraw/
+~/Library/Application Support/Excalidraw/
 ├── Architecture sketch.excalidraw
 ├── Retro board.excalidraw
 └── Untitled 2.excalidraw
@@ -107,7 +107,7 @@ This is the point of the whole design:
 - **Standard Excalidraw format.** Drag any of these into [excalidraw.com](https://excalidraw.com) and it opens. Nothing is locked in.
 - **Back them up like anything else.** Point the folder at Dropbox, iCloud, or a git repo and you have versioned diagrams.
 
-Set `EXCALIDRAW_LIBRARY_DIR` to keep the library somewhere other than `~/Documents/Excalidraw`.
+Set `EXCALIDRAW_LIBRARY_DIR` to keep the library somewhere other than `~/Library/Application Support/Excalidraw`.
 
 > **Upgrading from an older version?** Your existing single scene is imported automatically as a drawing called _My Drawing_ the first time you launch. Nothing is lost.
 
@@ -134,7 +134,7 @@ in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude d
 | --- | --- | --- |
 | `EXCALIDRAW_MCP_FOCUS` | `focus` | `focus` brings the app forward, `switch` changes the drawing without stealing focus, `off` writes files only |
 | `EXCALIDRAW_APP` | (built-in: launches via `open -a "Excalidraw Dev"`) | Path to an executable to launch, invoked with no arguments — not a shell command string. Unset uses the built-in default shown here. |
-| `EXCALIDRAW_LIBRARY_DIR` | `~/Documents/Excalidraw` | Where drawings live |
+| `EXCALIDRAW_LIBRARY_DIR` | `~/Library/Application Support/Excalidraw` | Where drawings live |
 
 ## Installation
 

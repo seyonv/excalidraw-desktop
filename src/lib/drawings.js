@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 // The only module that talks to the Rust side. Drawings live as real
-// `.excalidraw` files in ~/Documents/Excalidraw, named by their file stem.
+// `.excalidraw` files in ~/Library/Application Support/Excalidraw, named by their file stem.
 
 export const listDrawings = () => invoke("list_drawings");
 
