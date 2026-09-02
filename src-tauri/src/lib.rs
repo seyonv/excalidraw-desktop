@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
@@ -12,6 +13,14 @@ use tauri::Manager;
 
 const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
+/// Where the version replaced by each write is kept. A subdirectory of the
+/// library, so a drawing and its history travel together if the folder moves.
+/// Deliberately not `*.excalidraw` inside: `list_drawings` and `drawing_names`
+/// filter on the extension, so backups can never surface as drawings.
+const HISTORY_DIR: &str = ".history";
+/// Versions kept per drawing. Identical consecutive writes are not stored, so
+/// this is 20 *distinct* previous states, not 20 autosaves.
+const HISTORY_KEEP: usize = 20;
 /// An open-request older than this is ignored, so a request written long ago
 /// (the machine slept, the app crashed before consuming it, ...) can't hijack
 /// a much later cold launch with a stale target.
@@ -132,6 +141,145 @@ fn unique_name(base: &str, skip: Option<&Path>) -> Result<String, String> {
     }
 }
 
+/// Writes via a temp file, fsync, and an atomic rename.
+///
+/// `fs::write` truncates the destination *before* streaming the new bytes and
+/// never fsyncs. For a multi-megabyte scene that leaves a window — long enough
+/// to matter on a 9MB drawing — in which a crash, a SIGKILL, or a power cut
+/// leaves a truncated or empty `.excalidraw` file. A rename on the same
+/// filesystem is atomic, so a reader (the watcher, the MCP server, the next
+/// launch) sees either the whole old file or the whole new one.
+fn write_atomic(path: &Path, contents: &str) -> std::io::Result<()> {
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    // Same directory, so the rename stays on one filesystem. The pid keeps two
+    // processes from picking the same temp path, and the leading dot plus the
+    // `.tmp` extension keeps it out of both drawing listings.
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("drawing");
+    let tmp = dir.join(format!(".{stem}.{}.tmp", std::process::id()));
+
+    let result = (|| {
+        let mut file = fs::File::create(&tmp)?;
+        file.write_all(contents.as_bytes())?;
+        // The bytes must be on disk before the rename publishes them, or a
+        // power cut can leave the name pointing at an empty file.
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&tmp, path)
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+        return result;
+    }
+    // Durability of the directory entry itself. Best-effort: some filesystems
+    // reject fsync on a directory, and that must not fail the user's save.
+    if let Ok(handle) = fs::File::open(dir) {
+        let _ = handle.sync_all();
+    }
+    Ok(())
+}
+
+/// Live (non-deleted) element count of a serialised scene.
+///
+/// `None` means "not a scene I can read" — never treated as empty, because the
+/// empty-scene guard must not fire on input it does not understand.
+fn live_element_count(contents: &str) -> Option<usize> {
+    let value: serde_json::Value = serde_json::from_str(contents).ok()?;
+    let elements = value.get("elements")?.as_array()?;
+    Some(
+        elements
+            .iter()
+            .filter(|e| {
+                !e.get("isDeleted")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+            })
+            .count(),
+    )
+}
+
+/// `<library>/.history/<drawing>` — where that drawing's previous versions live.
+fn history_dir_for(path: &Path) -> Option<PathBuf> {
+    let stem = path.file_stem()?.to_str()?;
+    Some(path.parent()?.join(HISTORY_DIR).join(sanitize(stem)))
+}
+
+/// Fingerprint of what actually matters in a scene: its elements and its
+/// embedded files.
+///
+/// Scroll position, zoom and window size live in `appState` and change on
+/// virtually every interaction without the drawing itself changing. Hashing the
+/// whole file would let a minute of panning around evict twenty real versions.
+fn content_fingerprint(contents: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    match serde_json::from_str::<serde_json::Value>(contents) {
+        Ok(value) => {
+            for key in ["elements", "files"] {
+                value
+                    .get(key)
+                    .map(|v| v.to_string())
+                    .unwrap_or_default()
+                    .hash(&mut hasher);
+            }
+        }
+        // Not a scene we can read — fall back to the raw bytes so an
+        // unparseable file is still deduplicated rather than snapshotted twice.
+        Err(_) => contents.hash(&mut hasher),
+    }
+    hasher.finish()
+}
+
+/// The fingerprint a snapshot filename carries, so deduplicating never has to
+/// re-read and re-parse a multi-megabyte backup.
+fn snapshot_fingerprint(path: &Path) -> Option<u64> {
+    let stem = path.file_stem()?.to_str()?;
+    u64::from_str_radix(stem.split('-').nth(1)?, 16).ok()
+}
+
+/// Copies the version about to be replaced into the drawing's history.
+///
+/// The library has no other history: there is no in-app undo across restarts,
+/// and a `.excalidraw` overwritten with a bad scene was, before this, gone for
+/// good. States whose content is unchanged are not stored — the app rewrites the
+/// active drawing on every switch and on every scroll, so without that check a
+/// single afternoon would evict every genuinely different version.
+fn keep_previous_version(path: &Path) -> std::io::Result<()> {
+    let Ok(current) = fs::read_to_string(path) else {
+        return Ok(()); // nothing there yet — first write of a new drawing
+    };
+    let Some(dir) = history_dir_for(path) else {
+        return Ok(());
+    };
+    fs::create_dir_all(&dir)?;
+
+    let mut versions: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| Some(e.ok()?.path()))
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("bak"))
+        .collect();
+    // Names lead with a zero-padded timestamp, so this is chronological.
+    versions.sort();
+
+    let fingerprint = content_fingerprint(&current);
+    if versions.last().and_then(|p| snapshot_fingerprint(p)) == Some(fingerprint) {
+        return Ok(()); // same drawing as the newest snapshot
+    }
+
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let snapshot = dir.join(format!("{stamp:013}-{fingerprint:016x}.bak"));
+    write_atomic(&snapshot, &current)?;
+
+    versions.push(snapshot);
+    for stale in versions.iter().rev().skip(HISTORY_KEEP) {
+        let _ = fs::remove_file(stale);
+    }
+    Ok(())
+}
+
 fn modified_secs(path: &Path) -> u64 {
     fs::metadata(path)
         .and_then(|m| m.modified())
@@ -168,9 +316,28 @@ fn read_drawing(name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn write_drawing(name: String, contents: String) -> Result<(), String> {
+fn write_drawing(name: String, contents: String, allow_empty: Option<bool>) -> Result<(), String> {
     let path = path_for(&name)?;
-    fs::write(&path, contents).map_err(|e| format!("could not save {name}: {e}"))
+    // A scene is momentarily empty while a large drawing is still loading, and
+    // an autosave landing in that window is exactly how a 9MB drawing became a
+    // 2KB one. The frontend passes `allow_empty` only once it has seen the
+    // loaded scene, so a user who genuinely deletes everything still saves.
+    if !allow_empty.unwrap_or(false) && live_element_count(&contents) == Some(0) {
+        if let Ok(existing) = fs::read_to_string(&path) {
+            if live_element_count(&existing).unwrap_or(0) > 0 {
+                return Err(format!(
+                    "refusing to replace {name} with an empty scene — \
+                     the drawing on disk still has content"
+                ));
+            }
+        }
+    }
+
+    // Best-effort: never let a failed snapshot block the user's save.
+    if let Err(e) = keep_previous_version(&path) {
+        eprintln!("could not snapshot the previous version of {name}: {e}");
+    }
+    write_atomic(&path, &contents).map_err(|e| format!("could not save {name}: {e}"))
 }
 
 /// Creates an empty drawing under a free name and returns the name actually used.
@@ -181,7 +348,7 @@ fn create_drawing(name: Option<String>, contents: Option<String>) -> Result<Stri
         r#"{"type":"excalidraw","version":2,"source":"excalidraw-desktop","elements":[],"appState":{},"files":{}}"#
             .to_string()
     });
-    fs::write(path_for(&name)?, body).map_err(|e| format!("could not create {name}: {e}"))?;
+    write_atomic(&path_for(&name)?, &body).map_err(|e| format!("could not create {name}: {e}"))?;
     Ok(name)
 }
 
@@ -487,7 +654,14 @@ mod tests {
         assert_eq!(list_drawings().unwrap().len(), 2);
 
         // Round-trips contents.
-        write_drawing(first.clone(), "{\"elements\":[1]}".into()).unwrap();
+        write_drawing(first.clone(), "{\"elements\":[1]}".into(), None).unwrap();
+        assert_eq!(read_drawing(first.clone()).unwrap(), "{\"elements\":[1]}");
+
+        // An empty scene must not silently replace one that has content — the
+        // failure that cost a real 9MB drawing. Deliberate clearing is covered
+        // in the durability section below.
+        let empty_scene = r#"{"elements":[],"appState":{}}"#;
+        assert!(write_drawing(first.clone(), empty_scene.into(), None).is_err());
         assert_eq!(read_drawing(first.clone()).unwrap(), "{\"elements\":[1]}");
 
         // Rename moves the file and keeps the contents.
@@ -530,6 +704,90 @@ mod tests {
         // and it still survives a rename, which moves the file
         let moved = rename_drawing(rich, "Rich text renamed".into()).unwrap();
         assert_eq!(read_drawing(moved).unwrap(), captured);
+
+
+        // --- durability: atomic writes, bounded history, empty-scene guard ---
+        // Same serial test on purpose: EXCALIDRAW_LIBRARY_DIR is process-global.
+        let durable = create_drawing(Some("Durable".into()), None).unwrap();
+        let durable_path = path_for(&durable).unwrap();
+        for i in 1..=3 {
+            write_drawing(durable.clone(), format!(r#"{{"elements":[{i}]}}"#), None).unwrap();
+        }
+        // The temp file the atomic write goes through is always cleaned up, and
+        // never shows up as a drawing.
+        assert!(
+            !fs::read_dir(&dir)
+                .unwrap()
+                .any(|e| e.unwrap().path().extension().and_then(|x| x.to_str()) == Some("tmp")),
+            "a temp file survived the write"
+        );
+
+        // Each distinct state is kept; the newest snapshot is the state
+        // immediately before the file as it now stands.
+        let history = history_dir_for(&durable_path).unwrap();
+        let mut snaps: Vec<_> = fs::read_dir(&history)
+            .unwrap()
+            .filter_map(|e| Some(e.ok()?.path()))
+            .collect();
+        snaps.sort();
+        assert_eq!(snaps.len(), 3, "the empty original plus two superseded states");
+        assert_eq!(
+            fs::read_to_string(snaps.last().unwrap()).unwrap(),
+            r#"{"elements":[2]}"#
+        );
+        assert_eq!(read_drawing(durable.clone()).unwrap(), r#"{"elements":[3]}"#);
+
+        // Panning and zooming must not push real versions out of the history.
+        // These differ only in appState, exactly as the running app's saves do.
+        let before_viewport = fs::read_dir(&history).unwrap().count();
+        for i in 0..8 {
+            write_drawing(
+                durable.clone(),
+                format!(r#"{{"elements":[3],"appState":{{"scrollX":{i},"zoom":{i}}}}}"#),
+                None,
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            fs::read_dir(&history).unwrap().count(),
+            before_viewport + 1,
+            "viewport-only saves must not fill the history"
+        );
+
+        // Rewriting identical bytes stops adding snapshots — the app rewrites
+        // the active drawing on every switch, and that churn must not evict
+        // real history. The first such write still snapshots the current state
+        // (it is not in history yet); every repeat after that is a no-op.
+        write_drawing(durable.clone(), r#"{"elements":[3]}"#.into(), None).unwrap();
+        let settled = fs::read_dir(&history).unwrap().count();
+        for _ in 0..5 {
+            write_drawing(durable.clone(), r#"{"elements":[3]}"#.into(), None).unwrap();
+        }
+        assert_eq!(fs::read_dir(&history).unwrap().count(), settled);
+
+        // History is bounded.
+        for i in 0..(HISTORY_KEEP + 10) {
+            write_drawing(durable.clone(), format!(r#"{{"elements":[{i},"x"]}}"#), None).unwrap();
+        }
+        assert_eq!(fs::read_dir(&history).unwrap().count(), HISTORY_KEEP);
+
+        // An empty scene must not silently replace one with content — the
+        // failure that cost a real 9MB drawing — but a deliberate clear saves.
+        let before = read_drawing(durable.clone()).unwrap();
+        let empty = r#"{"elements":[],"appState":{}}"#;
+        assert!(write_drawing(durable.clone(), empty.into(), None).is_err());
+        assert_eq!(read_drawing(durable.clone()).unwrap(), before);
+        write_drawing(durable.clone(), empty.into(), Some(true)).unwrap();
+        assert_eq!(read_drawing(durable.clone()).unwrap(), empty);
+
+        // Unreadable input is never mistaken for an empty scene, so the guard
+        // cannot block a save it does not understand.
+        assert_eq!(live_element_count("not json"), None);
+        assert_eq!(live_element_count(r#"{"elements":[]}"#), Some(0));
+        assert_eq!(
+            live_element_count(r#"{"elements":[{"isDeleted":true}]}"#),
+            Some(0)
+        );
 
         std::env::remove_var("EXCALIDRAW_LIBRARY_DIR");
         let _ = fs::remove_dir_all(&dir);

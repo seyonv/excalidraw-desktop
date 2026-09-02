@@ -52,6 +52,12 @@ function App() {
   // match one of these is our own autosave echoing back — dropping it is what
   // stops write → watch → reload → change → write from looping forever.
   const lastWrittenRef = useRef(new Map());
+  // False from the moment a drawing is opened until the mounted Excalidraw has
+  // actually reported the elements it was opened with. A big, image-heavy scene
+  // reads as empty for a while during that window, and an autosave landing in
+  // it is what replaced a 9MB drawing with a blank one. Starts true for a
+  // drawing that really is empty, which has nothing to protect.
+  const sceneSettledRef = useRef(true);
 
   const {
     editing,
@@ -70,16 +76,20 @@ function App() {
     clearTimeout(timerRef.current);
     const name = activeNameRef.current;
     if (!dirtyRef.current || !name || !apiRef.current) return;
-    dirtyRef.current = false;
     const api = apiRef.current;
+    const elements = api.getSceneElements();
+    // Still loading, not emptied. Stay dirty so the real scene saves once it
+    // arrives, and never hand this to disk.
+    if (elements.length === 0 && !sceneSettledRef.current) return;
+    dirtyRef.current = false;
     try {
       const contents = serializeScene(
-        api.getSceneElements(),
+        elements,
         api.getAppState(),
         api.getFiles(),
       );
       lastWrittenRef.current.set(name, contents);
-      await writeDrawing(name, contents);
+      await writeDrawing(name, contents, sceneSettledRef.current);
     } catch (e) {
       dirtyRef.current = true;
       setError(String(e));
@@ -97,6 +107,7 @@ function App() {
 
   const openScene = useCallback((name, contents) => {
     const parsed = parseScene(contents);
+    sceneSettledRef.current = (parsed.elements?.length ?? 0) === 0;
     setScene(parsed);
     setActiveName(name);
     activeNameRef.current = name;
@@ -254,8 +265,11 @@ function App() {
     window.EXCALIDRAW_ASSET_PATH = "/";
   }, []);
 
-  const handleChange = useCallback((_elements, appState) => {
+  const handleChange = useCallback((elements, appState) => {
     setTheme(appState.theme ?? "light");
+    // The scene has produced its contents, so from here an empty scene is a
+    // real deletion rather than a half-loaded drawing.
+    if (elements.length > 0) sceneSettledRef.current = true;
     // While editing, the scene is missing the block being edited. Saving that
     // would write a file without it, and quitting mid-edit would lose it.
     if (isEditingRef.current) return;

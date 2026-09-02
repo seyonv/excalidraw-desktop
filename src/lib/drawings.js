@@ -8,8 +8,10 @@ export const listDrawings = () => invoke("list_drawings");
 
 export const readDrawing = (name) => invoke("read_drawing", { name });
 
-export const writeDrawing = (name, contents) =>
-  invoke("write_drawing", { name, contents });
+/** `allowEmpty` confirms a scene with no elements is the user's doing rather
+ *  than a drawing that has not finished loading — see the guard in lib.rs. */
+export const writeDrawing = (name, contents, allowEmpty = false) =>
+  invoke("write_drawing", { name, contents, allowEmpty });
 
 /** Returns the name actually used, which may differ if the requested one was taken. */
 export const createDrawing = (name, contents) =>

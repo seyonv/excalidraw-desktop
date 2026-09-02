@@ -101,6 +101,21 @@ starts formatting filenames, the seams have eroded.
 - **`updateScene` with no `elements` key wipes the scene.** Every call must pass
   the elements it wants to keep, even one that only means to change `appState`.
 
+- **Never write a drawing with `fs::write`.** It truncates the destination
+  before writing a byte and never fsyncs, so a crash or a `kill -9` part-way
+  through a 9MB scene leaves a truncated file. `write_atomic()` (temp file →
+  `sync_all` → rename) is the only way a drawing reaches disk.
+- **An empty scene is not proof the user emptied it.** A large, image-heavy
+  drawing reports zero elements for a while after it mounts. `sceneSettledRef`
+  in `App.jsx` stays false until the mounted scene has reported the elements it
+  was opened with, and `flush()` will not write an empty scene before then;
+  `write_drawing` refuses one in Rust as the backstop unless `allow_empty` says
+  the user really did clear it. This is not theoretical — it cost a real 9MB
+  drawing, recovered only because stale exports happened to sit in `~/Downloads`.
+- **`keep_previous_version` skips identical consecutive states on purpose.** The
+  app rewrites the active drawing on every switch, so snapshotting every write
+  would evict twenty real versions in an afternoon.
+
 ## Gotchas in this repo
 
 - A formatter hook reformats **every** file on each edit, including the vendored

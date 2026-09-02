@@ -98,7 +98,11 @@ else and the pixels are still right.
 ~/Library/Application Support/Excalidraw/
 ├── Architecture sketch.excalidraw
 ├── Retro board.excalidraw
-└── Untitled 2.excalidraw
+├── Untitled 2.excalidraw
+└── .history/
+    └── Architecture sketch/
+        ├── 1788380259227.bak
+        └── 1788380259246.bak
 ```
 
 This is the point of the whole design:
@@ -106,6 +110,25 @@ This is the point of the whole design:
 - **The filename is the drawing name.** Rename a file in Finder and the sidebar shows the new name.
 - **Standard Excalidraw format.** Drag any of these into [excalidraw.com](https://excalidraw.com) and it opens. Nothing is locked in.
 - **Back them up like anything else.** Point the folder at Dropbox, iCloud, or a git repo and you have versioned diagrams.
+
+### Your drawings are hard to lose
+
+Files with no history mean one bad write loses everything, so saving is defensive:
+
+- **Every save is atomic.** A drawing is written to a temp file, flushed to disk, then
+  renamed into place. A crash or a power cut mid-save leaves the previous version
+  intact rather than a truncated file — which matters most on the large,
+  image-heavy drawings that take longest to write.
+- **The version each save replaces is kept** under `.history/<drawing>/`, newest last,
+  up to 20 distinct states per drawing. Identical saves are not stored, so ordinary
+  autosave churn doesn't push out real history. To roll back, copy a `.bak` over the
+  `.excalidraw` file — it's the same format.
+- **A drawing that still has content is never replaced by an empty one** unless you
+  actually cleared it. A large scene reads as empty for a moment while it loads, and
+  an autosave landing in that window would otherwise blank the file.
+
+`.history/` is ordinary files too — delete it whenever you like, and the app rebuilds
+it on the next save.
 
 Set `EXCALIDRAW_LIBRARY_DIR` to keep the library somewhere other than `~/Library/Application Support/Excalidraw`.
 
