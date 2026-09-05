@@ -4,6 +4,21 @@ import "./Sidebar.css";
 const REORDER_MS = 220;
 
 /**
+ * FLIP's second half: pin the element to the state it is animating *from*,
+ * flush that, then release it to its real state on the next frame so the
+ * change plays out as a transition instead of a jump.
+ */
+function animateFrom(el, prop, from) {
+  el.style.transition = "none";
+  el.style[prop] = from;
+  el.getBoundingClientRect(); // force reflow before releasing the transition
+  requestAnimationFrame(() => {
+    el.style.transition = `${prop} ${REORDER_MS}ms ease`;
+    el.style[prop] = "";
+  });
+}
+
+/**
  * Collapsible list of drawings. Purely presentational — every mutation is
  * delegated upward so App stays the single owner of the library state.
  */
@@ -44,20 +59,27 @@ function Sidebar({
       nextPositions.set(name, el.getBoundingClientRect().top);
     });
 
-    nextPositions.forEach((top, name) => {
-      const prevTop = rowPositions.current.get(name);
-      if (prevTop === undefined) return;
-      const delta = prevTop - top;
-      if (!delta) return;
-      const el = rowRefs.current.get(name);
-      el.style.transition = "none";
-      el.style.transform = `translateY(${delta}px)`;
-      el.getBoundingClientRect(); // force reflow before releasing the transition
-      requestAnimationFrame(() => {
-        el.style.transition = `transform ${REORDER_MS}ms ease`;
-        el.style.transform = "";
+    // The first list we see is the app opening, not a reorder — there is
+    // nothing to animate against, and every row would count as new.
+    if (rowPositions.current.size) {
+      nextPositions.forEach((top, name) => {
+        const el = rowRefs.current.get(name);
+        const prevTop = rowPositions.current.get(name);
+
+        // A row that wasn't here before — "New drawing" — has no old position
+        // to slide from, and the rows it displaced spend the whole animation
+        // still translated over its slot. Fading it in on the same beat lets
+        // them clear out first; drawn instantly at full opacity it pops in
+        // underneath their text, which is the part that reads as sudden.
+        if (prevTop === undefined) {
+          animateFrom(el, "opacity", "0");
+          return;
+        }
+
+        const delta = prevTop - top;
+        if (delta) animateFrom(el, "transform", `translateY(${delta}px)`);
       });
-    });
+    }
 
     rowPositions.current = nextPositions;
   }, [drawings]);
