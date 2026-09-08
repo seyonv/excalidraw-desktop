@@ -33,9 +33,8 @@ function common(overrides) {
 export function toElements(doc, laidOut, base) {
   const { x: originX, y: originY, id, fontSize, fontFamily, lineHeight, strokeColor, groupId, maxWidth } = base;
   // The base travels with the model. Reopening a block has to lay it out at the
-  // same width from the same origin, and neither can be recovered from the
-  // generated elements: a highlight bleeds 2px left of the origin, and a block
-  // that happens not to wrap says nothing about the width it was wrapped to.
+  // same width, and a block that happens not to wrap says nothing about the
+  // width it was wrapped to. Its origin is a different matter — see `stamp`.
   const meta = {
     richTextId: id,
     richText: {
@@ -44,6 +43,15 @@ export function toElements(doc, laidOut, base) {
       base: { x: originX, y: originY, maxWidth, fontSize, fontFamily, lineHeight, strokeColor },
     },
   };
+  // Each element also records where it sits relative to the origin, so the
+  // origin can be recovered from any one of them. `base.x/y` is only where the
+  // block was *first* laid out: moving or duplicating a block leaves it stale,
+  // and laying the reopened edit out from it snapped the block back.
+  const stamp = (el) => common({
+    ...el,
+    groupIds: [groupId],
+    customData: { ...meta, richTextOffset: { dx: el.x - originX, dy: el.y - originY } },
+  });
   const behind = [];
   const front = [];
 
@@ -59,16 +67,15 @@ export function toElements(doc, laidOut, base) {
       const textWidth = frag.width - pad * 2;
 
       if (frag.run.highlight) {
-        behind.push(common({
+        behind.push(stamp({
           type: "rectangle",
           x: textX - HIGHLIGHT_BLEED, y: y - HIGHLIGHT_BLEED,
           width: textWidth + HIGHLIGHT_BLEED * 2, height: line.height + HIGHLIGHT_BLEED * 2,
           strokeColor: "transparent", backgroundColor: HIGHLIGHT_FILL,
-          groupIds: [groupId], customData: meta,
         }));
       }
 
-      front.push(common({
+      front.push(stamp({
         type: "text",
         x: textX, y,
         width: textWidth, height: line.height,
@@ -78,35 +85,42 @@ export function toElements(doc, laidOut, base) {
         fontSize, fontFamily, lineHeight,
         textAlign: "left", verticalAlign: "top",
         containerId: null, autoResize: true,
-        groupIds: [groupId], customData: meta,
       }));
 
       if (frag.run.underline) {
         const uy = y + line.height - 2;
-        front.push(common({
+        front.push(stamp({
           type: "line",
           x: textX, y: uy, width: textWidth, height: 0,
           points: [[0, 0], [textWidth, 0]],
           strokeColor: frag.run.color ?? strokeColor,
           backgroundColor: "transparent",
-          groupIds: [groupId], customData: meta,
         }));
       }
 
       if (frag.run.box) {
-        front.push(common({
+        front.push(stamp({
           type: "rectangle",
           x, y: y - 2, width: frag.width, height: line.height + 4,
           strokeColor: frag.run.color ?? strokeColor,
           backgroundColor: "transparent",
           roundness: { type: 3 },
-          groupIds: [groupId], customData: meta,
         }));
       }
     }
   }
 
   return [...behind, ...front];
+}
+
+/** Where the block's origin is *now*, read back from any element that survived.
+ *  A duplicated or moved block carries a stale `base.x/y`; this is the truth. */
+export function readOrigin(elements) {
+  for (const el of elements) {
+    const off = el?.customData?.richTextOffset;
+    if (off) return { x: el.x - off.dx, y: el.y - off.dy };
+  }
+  return null;
 }
 
 export const isRichText = (element) => Boolean(element?.customData?.richTextId);

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toElements, readModel, isRichText } from "./elements.js";
+import { toElements, readModel, readOrigin, isRichText } from "./elements.js";
 import { layout } from "./layout.js";
 import { fromText, applyStyle } from "./model.js";
 
@@ -98,4 +98,21 @@ test("the base travels with the model so a reopened block lays out identically",
   // where the block starts
   const els = build(doc);
   assert.ok(Math.min(...els.map((e) => e.x)) < model.base.x);
+});
+
+test("the origin is recoverable from any element, however the block was moved", () => {
+  // a highlight bleeds left of the origin, so the minimum x is not it
+  const doc = applyStyle(fromText("aaa bbb"), 0, 3, "hl", true);
+  const els = build(doc);
+  assert.deepEqual(readOrigin(els), { x: 100, y: 50 });
+  // dragging the block moves the elements and leaves base.x/y stale; the
+  // recovered origin is where the block actually is now
+  const moved = els.map((e) => ({ ...e, x: e.x + 30, y: e.y - 12 }));
+  assert.deepEqual(readOrigin(moved), { x: 130, y: 38 });
+  // and any single survivor is enough
+  assert.deepEqual(readOrigin([moved[moved.length - 1]]), { x: 130, y: 38 });
+});
+
+test("readOrigin reports nothing for elements that never carried an offset", () => {
+  assert.equal(readOrigin([{ x: 1, y: 2, customData: { richTextId: "rt1" } }]), null);
 });

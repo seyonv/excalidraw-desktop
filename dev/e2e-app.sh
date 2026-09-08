@@ -88,6 +88,45 @@ check "shortcut converts plain text" "true" "$(js 'String(window.__overlayOpen()
 check "shortcut applies its emphasis" "true" \
   "$(js 'String(window.__overlayRuns().some(r=>r.cls.includes("c-blue")))')"
 
+# ---------- 7c. a copy is its own block ----------
+# Duplicating carries customData over verbatim, so a copy and its original share
+# a richTextId. Editing the copy used to gather both and commit one block over
+# the two: the original vanished and the edit landed at the original's origin.
+reset
+js "window.__selectRich()" >/dev/null
+js "window.__duplicateSelection()" >/dev/null
+sleep 1
+check "duplicate makes a second block" "2" "$(js 'JSON.parse(window.__blocks()).length')"
+js "window.__dblclick()" >/dev/null   # the copy is what the duplicate left selected
+sleep 1
+check "only the copy is hidden while editing" "1" "$(js 'JSON.parse(window.__blocks()).length')"
+$B press "ArrowRight" >/dev/null
+$B type " COPY" >/dev/null
+$B press "Escape" >/dev/null
+sleep 1
+check "both blocks survive the edit" "2" "$(js 'JSON.parse(window.__blocks()).length')"
+check "the original is untouched" "1" \
+  "$(js 'String(JSON.parse(window.__blocks()).filter(b=>b.text==="'"$TEXT"'").length)')"
+check "the edit went to the copy only" "1" \
+  "$(js 'String(JSON.parse(window.__blocks()).filter(b=>b.text.includes("COPY")).length)')"
+check "the copy stays where it was dropped" "true" \
+  "$(js 'String(JSON.parse(window.__blocks()).find(b=>b.text.includes("COPY")).y>120)')"
+check "the copy has its own identity" "2" \
+  "$(js 'String(new Set(JSON.parse(window.__blocks()).map(b=>b.rtId)).size)')"
+
+# ---------- 7d. a moved block stays where it was moved to ----------
+# base.x/y is only where the block was first laid out; committing from it
+# snapped a dragged block back to its original spot.
+reset
+js "window.__moveRich(200, 150)" >/dev/null
+open_editor
+$B press "ArrowRight" >/dev/null
+$B type "!" >/dev/null
+$B press "Escape" >/dev/null
+sleep 1
+check "the edit stays at the moved position" "320,270" \
+  "$(js '(b=>b.x+","+b.y)(JSON.parse(window.__blocks())[0])')"
+
 # ---------- 8. the quit-and-reopen path, through the real file format ----------
 # serializeScene + parseScene are the exact pair the app writes and reads files
 # with, so this is the round trip minus the disk hop.

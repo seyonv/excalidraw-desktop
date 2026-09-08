@@ -49,6 +49,62 @@
     return Object.keys(api.getAppState().selectedElementIds).join(",");
   };
 
+  /** One entry per visual block, keyed by the Excalidraw group id: how many
+   *  elements it has, its text, and where its top-left sits. Two entries after
+   *  a duplicate — that is how the copy/original tests tell them apart. */
+  window.__blocks = () => {
+    const by = new Map();
+    for (const el of rich()) {
+      const g = el.groupIds?.[0] ?? "none";
+      if (!by.has(g)) by.set(g, { group: g, rtId: el.customData.richTextId, n: 0, text: "", x: Infinity, y: Infinity });
+      const b = by.get(g);
+      b.n += 1;
+      if (el.type === "text") b.text += el.text;
+      b.x = Math.min(b.x, el.x);
+      b.y = Math.min(b.y, el.y);
+    }
+    return JSON.stringify([...by.values()]);
+  };
+
+  /** Excalidraw's own duplicate (element/duplicate.ts `duplicateElement`): deep
+   *  copy, fresh element id, fresh group ids, everything else — customData
+   *  included — carried over verbatim, offset like alt-drag or Cmd+D. Done here
+   *  rather than by pressing Cmd+D because the headless canvas never takes the
+   *  keyboard focus Excalidraw's shortcut handler needs. */
+  window.__duplicateSelection = () => {
+    const all = api.getSceneElements();
+    const selected = api.getAppState().selectedElementIds;
+    const groupMap = new Map();
+    const copies = all.filter((el) => selected[el.id]).map((el) => {
+      const copy = JSON.parse(JSON.stringify(el));
+      copy.id = `dup-${Math.random().toString(36).slice(2)}`;
+      copy.groupIds = (el.groupIds || []).map((g) => {
+        if (!groupMap.has(g)) groupMap.set(g, `dupg-${Math.random().toString(36).slice(2)}`);
+        return groupMap.get(g);
+      });
+      copy.x += 10;
+      copy.y += 10;
+      return copy;
+    });
+    const ids = {};
+    copies.forEach((c) => { ids[c.id] = true; });
+    api.updateScene({
+      elements: [...all, ...copies],
+      appState: { ...api.getAppState(), selectedElementIds: ids },
+    });
+    return copies.length;
+  };
+
+  /** Drag the whole block, as moving it with the mouse would. */
+  window.__moveRich = (dx, dy) => {
+    api.updateScene({
+      elements: api.getSceneElements().map(
+        (el) => (el.customData?.richTextId ? { ...el, x: el.x + dx, y: el.y + dy } : el),
+      ),
+    });
+    return window.__blocks();
+  };
+
   window.__overlayOpen = () => Boolean(document.querySelector(".richtext-overlay"));
 
   window.__overlayText = () => {

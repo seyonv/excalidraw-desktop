@@ -4,7 +4,7 @@ import { ACT_FOR_KEY } from "../../components/RichTextOverlay";
 import { fromText } from "./model";
 import { layout } from "./layout";
 import { canvasMeasure, fontsReady } from "./measure";
-import { isRichText, readModel, toElements } from "./elements";
+import { isRichText, readModel, readOrigin, toElements } from "./elements";
 
 const BOX_PADDING = 6;
 
@@ -138,13 +138,29 @@ export function useRichTextEditing({ apiRef, containerRef }) {
 
       if (hit) {
         const richTextId = hit.customData.richTextId;
-        const group = all.filter((el) => el.customData?.richTextId === richTextId);
+        // Scope the block by its Excalidraw group, not by `richTextId`.
+        // Duplicating or pasting copies `customData` verbatim but regenerates
+        // group ids, so a copy and its original share a `richTextId`: gathering
+        // by that id swallowed the original into the copy's edit and committed
+        // one block over the two. The group id is what makes a copy its own block.
+        const groupId = hit.groupIds?.[0];
+        const group = groupId
+          ? all.filter((el) => isRichText(el) && el.groupIds?.[0] === groupId)
+          : all.filter((el) => el.customData?.richTextId === richTextId);
         const model = readModel(group);
         if (!model) return;
         claim();
+        // A copy has to stop answering to the original's id, or the next edit
+        // of either one finds both again through the model stored on it.
+        const id = groupId && groupId !== `rtg-${richTextId}` ? `rt-${groupId}` : richTextId;
         openEditor(
           model.blocks,
-          { ...model.base, id: richTextId, groupId: hit.groupIds?.[0] ?? `rtg-${richTextId}` },
+          {
+            ...model.base,
+            ...(readOrigin(group) ?? {}),
+            id,
+            groupId: groupId ?? `rtg-${id}`,
+          },
           group.map((el) => el.id),
         );
         return;

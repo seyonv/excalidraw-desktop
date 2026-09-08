@@ -93,10 +93,20 @@ starts formatting filenames, the seams have eroded.
   `updateScene` so the finished edit still saves.
 - **A cancelled edit must restore the exact elements that were hidden.** They are
   stashed on open for that reason — nothing else in the scene can reconstruct them.
+- **A rich text block is identified by its Excalidraw group id, not by
+  `richTextId`.** Duplicating or pasting copies `customData` verbatim while
+  regenerating element and group ids, so a copy and its original share a
+  `richTextId`. Gathering the block by that id pulled both into one edit: the
+  original disappeared and the commit wrote a single block over the two. The
+  copy is re-stamped with its own id when it is next edited.
+- **The origin comes from `richTextOffset` on the elements, not from `base.x/y`.**
+  `base.x/y` is only where the block was *first* laid out — moving or
+  duplicating it leaves that stale, and laying the reopened edit out from it
+  snapped the block back to where it started. Every generated element records
+  its own offset from the origin, so any survivor can say where the block is now.
 - **The base travels with the model in `customData`.** A reopened block has to lay
-  out at the same width from the same origin, and neither is recoverable from the
-  generated elements: a highlight bleeds left of the origin, and a block that
-  happens not to wrap says nothing about the width it was wrapped to.
+  out at the same width, and that is not recoverable from the generated elements:
+  a block that happens not to wrap says nothing about the width it was wrapped to.
 
 - **`updateScene` with no `elements` key wipes the scene.** Every call must pass
   the elements it wants to keep, even one that only means to change `appState`.
