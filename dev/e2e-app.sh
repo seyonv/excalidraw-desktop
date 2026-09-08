@@ -173,23 +173,29 @@ check "it wrapped to more lines" "true" \
 check "the font size is untouched" "$FONT_BEFORE" "$(js 'window.__fontSize()')"
 check "the origin stays put" "120" "$(js '(b=>String(b.x))(JSON.parse(window.__blocks())[0])')"
 
-# dragging the left border anchors the right one
+# dragging the left border anchors the right one — the box's edge, not the
+# last glyph's: wrapping leaves a ragged gap that changes with every breakpoint
 reset
 js "window.__selectRich()" >/dev/null
-RIGHT_BEFORE="$(js 'window.__rightEdge()')"
+RIGHT_BEFORE="$(js '(b=>String(b.right))(JSON.parse(window.__blockBase()))')"
 js 'window.__dragEdge("w", 120)' >/dev/null
 sleep 1
-check "a left drag anchors the right edge" "$RIGHT_BEFORE" "$(js 'window.__rightEdge()')"
+check "a left drag anchors the right edge" "$RIGHT_BEFORE" \
+  "$(js '(b=>String(b.right))(JSON.parse(window.__blockBase()))')"
 check "a left drag moves the origin" "true" \
-  "$(js '(b=>String(b.x>120))(JSON.parse(window.__blocks())[0])')"
+  "$(js '(b=>String(b.x>120))(JSON.parse(window.__blockBase()))')"
+check "a left drag narrows the box" "true" \
+  "$(js '(b=>String(b.maxWidth<420))(JSON.parse(window.__blockBase()))')"
 
-# the width floor
+# the width floor is fontSize * 4 — 80 for the fixture's 20px text
 reset
 js "window.__selectRich()" >/dev/null
 js 'window.__dragEdge("e", -600)' >/dev/null
 sleep 1
-check "the width stops at the floor" "true" \
-  "$(js 'String(window.__rightEdge() - JSON.parse(window.__blocks())[0].x >= 79)')"
+check "the width stops at the floor" "80" \
+  "$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
+check "the origin did not move on an e drag" "120" \
+  "$(js '(b=>String(b.x))(JSON.parse(window.__blockBase()))')"
 
 # shift is the scale gesture and stays Excalidraw's
 reset

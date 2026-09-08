@@ -121,9 +121,16 @@
   window.__fontSize = () =>
     rich().find((e) => e.type === "text")?.fontSize ?? 0;
 
-  /** The right-hand edge of the block, for checking a `w` drag anchors it. */
-  window.__rightEdge = () =>
-    Math.round(Math.max(...rich().map((e) => e.x + e.width)));
+  /** The block's committed base: where its box starts and how wide it wraps to.
+   *  This is the box, not the glyphs — greedy wrapping leaves a ragged gap to
+   *  the right of the last word, and that gap changes with every breakpoint, so
+   *  the ink edge is not an invariant and the box edge is. */
+  window.__blockBase = () => {
+    const el = rich().find((e) => e.customData?.richText?.base);
+    if (!el) return "null";
+    const { x, y, maxWidth, fontSize } = el.customData.richText.base;
+    return JSON.stringify({ x, y, maxWidth, fontSize, right: x + maxWidth });
+  };
 
   /** Excalidraw's own duplicate (element/duplicate.ts `duplicateElement`): deep
    *  copy, fresh element id, fresh group ids, everything else — customData
