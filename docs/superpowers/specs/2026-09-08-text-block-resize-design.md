@@ -159,8 +159,9 @@ what `layout()` already does.
 - Laying the same doc out at half the width produces more lines and identical
   font size — the property the gesture exists to deliver.
 
-**E2E** (`dev/e2e-app.sh`, real Excalidraw in a real browser). Each of these
-fails before the change:
+**E2E** (`dev/e2e-app.sh`, real Excalidraw in a real browser). Every case below
+except the shift-drag one fails before the change; the shift-drag case is there
+to pin behaviour we are deliberately *not* changing:
 
 - Dragging the right edge of a selected block re-wraps it: more lines than
   before, `fontSize` identical, origin unmoved.
