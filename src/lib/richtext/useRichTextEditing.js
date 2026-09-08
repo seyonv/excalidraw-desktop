@@ -166,9 +166,13 @@ export function useRichTextEditing({ apiRef, containerRef }) {
         return;
       }
 
-      // Double-clicking ordinary text converts it. Without this the only way in
-      // is a shortcut with an invisible precondition, and the gesture everyone
-      // actually reaches for opens Excalidraw's own editor instead.
+      // ⌘/Ctrl double-click converts ordinary text. A plain double-click is
+      // left to Excalidraw: most text never needs to be rich, and claiming the
+      // gesture meant you could not get into a block to fix a typo without it
+      // becoming rich for good. An already-rich block above has no such choice
+      // — Excalidraw would open one generated fragment, and typing into it
+      // would desync the model from the elements.
+      if (!(event.metaKey || event.ctrlKey)) return;
       const plain = all.find(
         (el) => selectedElementIds[el.id] && el.type === "text" && !isRichText(el),
       );

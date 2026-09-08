@@ -73,12 +73,28 @@ check "overlay follows the zoom" "matrix(2, 0, 0, 2, 0, 0)" "$(js 'window.__over
 # ---------- 7b. converting an ordinary text element ----------
 # Both entry points, because a shortcut with an invisible precondition is not a
 # discoverable way in and double-click is the gesture people actually reach for.
+# Plain double-click belongs to Excalidraw: most text never needs to be rich,
+# and hijacking the gesture means you cannot get in to fix a typo without the
+# block becoming rich forever. The modifier is the way in.
 reset
 js "window.__selectPlain()" >/dev/null
 js "window.__dblclick()" >/dev/null
 sleep 1
-check "double-click converts plain text" "true" "$(js 'String(window.__overlayOpen())')"
+check "plain double-click leaves it to Excalidraw" "false" "$(js 'String(window.__overlayOpen())')"
+check "plain double-click opens Excalidraw's editor" "true" "$(js 'String(window.__nativeEditorOpen())')"
+
+reset
+js "window.__selectPlain()" >/dev/null
+js "window.__dblclick({ meta: true })" >/dev/null
+sleep 1
+check "cmd double-click converts plain text" "true" "$(js 'String(window.__overlayOpen())')"
 check "converted block holds its text" "plain text here" "$(js 'window.__overlayText()')"
+
+# A block that is already rich has no other sensible editor: Excalidraw would
+# open one generated fragment, and typing into it would desync the model.
+reset
+open_editor
+check "a rich block still opens on a plain double-click" "true" "$(js 'window.__overlayOpen()')"
 
 reset
 js "window.__selectPlain()" >/dev/null

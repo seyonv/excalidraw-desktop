@@ -32,9 +32,28 @@
     return Object.keys(ids).length;
   };
 
-  window.__dblclick = () => {
-    const ev = new MouseEvent("dblclick", { bubbles: true, cancelable: true });
-    area.dispatchEvent(ev);
+  window.__dblclick = (opts = {}) => {
+    // Aim at the middle of the selection. Our own handler ignores coordinates,
+    // but Excalidraw's hit-tests them — without real ones a double-click we
+    // decline to claim lands on empty canvas and opens nothing.
+    const sel = api.getSceneElements().filter(
+      (el) => api.getAppState().selectedElementIds[el.id],
+    );
+    const st = api.getAppState();
+    const point = sel.length
+      ? {
+          clientX: (sel[0].x + sel[0].width / 2 + st.scrollX) * st.zoom.value + (st.offsetLeft ?? 0),
+          clientY: (sel[0].y + sel[0].height / 2 + st.scrollY) * st.zoom.value + (st.offsetTop ?? 0),
+        }
+      : {};
+    const ev = new MouseEvent("dblclick", {
+      bubbles: true, cancelable: true, metaKey: Boolean(opts.meta), ...point,
+    });
+    // Dispatched on the canvas, not the container: React delivers to the
+    // target's ancestors, so an event raised on the container never reaches
+    // Excalidraw's own handler. It still bubbles up through the container, so
+    // our capture-phase listener sees it first either way.
+    (document.querySelector("canvas.interactive") ?? area).dispatchEvent(ev);
     // defaultPrevented means our handler claimed it; the overlay itself renders
     // on React's next pass, so the caller checks __overlayOpen() separately.
     return ev.defaultPrevented;
@@ -106,6 +125,11 @@
   };
 
   window.__overlayOpen = () => Boolean(document.querySelector(".richtext-overlay"));
+
+  /** Excalidraw's own text editor: the textarea it mounts over the canvas. */
+  window.__nativeEditorOpen = () =>
+    Boolean(api.getAppState().editingTextElement) ||
+    Boolean(document.querySelector(".excalidraw-wysiwyg"));
 
   window.__overlayText = () => {
     const el = document.querySelector(".richtext-overlay");

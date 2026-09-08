@@ -56,9 +56,13 @@ On the web, a text block has exactly one colour. Here a single block can carry a
 different style per phrase, so a note can emphasise the word that matters instead
 of being split into separate elements to do it.
 
-Double-click a text block to edit it, select a phrase, and press a key. Ordinary
-text converts the first time you do this — double-click it, or select it and
-press one of the shortcuts directly.
+Double-click a rich text block to edit it, select a phrase, and press a key.
+
+Ordinary text stays ordinary: a plain double-click opens Excalidraw's own text
+editor, exactly as it does in the stock app. To promote a text element into a
+rich block, **⌘double-click** it, or select it and press one of the shortcuts
+below directly. Most text never needs to be rich, and the gesture you reach for
+to fix a typo should not change what a block is.
 
 | Emphasis                 | Shortcut |
 | ------------------------ | ----- |

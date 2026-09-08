@@ -93,6 +93,12 @@ starts formatting filenames, the seams have eroded.
   `updateScene` so the finished edit still saves.
 - **A cancelled edit must restore the exact elements that were hidden.** They are
   stashed on open for that reason — nothing else in the scene can reconstruct them.
+- **Converting ordinary text needs ⌘/Ctrl; a plain double-click is Excalidraw's.**
+  Claiming the bare gesture meant you could not open a text element to fix a
+  typo without it becoming a rich block for good. A block that is *already* rich
+  is the exception and opens our editor on a plain double-click — Excalidraw
+  would open one generated fragment, and typing into it desyncs the model from
+  the elements it was generated into.
 - **A rich text block is identified by its Excalidraw group id, not by
   `richTextId`.** Duplicating or pasting copies `customData` verbatim while
   regenerating element and group ids, so a copy and its original share a
