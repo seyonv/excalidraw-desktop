@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Dragging the left or right edge of a rich text block re-wraps it at the same font size; every other drag scales box and font together, and that scale now sticks.
+**Goal:** Dragging the left or right edge of a rich text block re-wraps it at the same font size; every other drag scales box and font together, and that scale now sticks. Task 5, added after the plan was approved, fixes a wrapping bug found in real use while this work was underway: the canvas wrapped a word earlier than the editor showed.
 
 **Architecture:** Two independent halves. The re-wrap half is a drag we own: a capture-phase `pointerdown` on the canvas container claims an edge grab before Excalidraw sees it and re-lays the block out live. The scale half owns nothing — each generated element already records its offset from the block's origin, and now also the width it was generated at, so the scale is read back off the elements when the block is next opened.
 
@@ -737,6 +737,169 @@ git commit -m "Document resizing a text block"
 ```
 
 ---
+
+---
+
+### Task 5: The editor's wrap and the canvas's wrap must agree
+
+Reported from real use: convert a paragraph, colour a phrase, click away — and the
+committed block wraps a word earlier than the editor showed, gaining a line that
+was not there while editing. The overlay promises WYSIWYG; this breaks it.
+
+**Root cause, already confirmed.** `words()` keeps a word's trailing space with
+the word, and the fit test charges that space to the line
+(`src/lib/richtext/layout.js:65-67`):
+
+```js
+for (const word of words(text)) {
+  const width = measure(word);      // "message " — the space is included
+  if (x + width > available && fragments.length) flush();
+```
+
+A browser hangs trailing whitespace at a line break rather than counting it, and
+the overlay *is* a browser. Demonstrated with the pure layout function: text with
+70 of ink, 75 of available width, and it still breaks —
+
+```
+layout(fromText("aaa bbb ccc"), { measure: t => t.length * 10, maxWidth: 75, ... })
+  → 2 lines: ["aaa ", "bbb ccc"]      // want: ["aaa bbb ", "ccc"]
+```
+
+**Files:**
+- Modify: `src/lib/richtext/layout.js` (`placeSegment`, the word loop)
+- Test: `src/lib/richtext/layout.test.js`
+- Test: `dev/app-harness.js`, `dev/e2e-app.sh`
+
+**Interfaces:** none change. `layout(doc, opts)` keeps its signature and its
+output shape; only the break decision moves.
+
+- [ ] **Step 1: Write the failing unit tests**
+
+Add to `src/lib/richtext/layout.test.js` (use the file's existing `measure`/opts
+helpers if they match; otherwise define them locally as below):
+
+```js
+test("a trailing space is hung at a break, not charged to the line", () => {
+  const measure = (t) => t.length * 10;
+  // "aaa bbb" is 70 of ink. The space after "bbb" exists only because "ccc"
+  // follows it, and a browser does not count it when breaking.
+  const doc = fromText("aaa bbb ccc");
+  const { lines } = layout(doc, { measure, maxWidth: 75, fontSize: 20, lineHeight: 1.25 });
+  assert.equal(lines.length, 2);
+  assert.deepEqual(lines.map((l) => l.fragments.map((f) => f.text).join("")), ["aaa bbb ", "ccc"]);
+});
+
+test("a word whose own ink overflows still breaks", () => {
+  const measure = (t) => t.length * 10;
+  // "bbb" is 30 of ink and only 20 is left after "aaa " — hanging the space
+  // must not turn into never breaking
+  const doc = fromText("aaa bbb");
+  const { lines } = layout(doc, { measure, maxWidth: 60, fontSize: 20, lineHeight: 1.25 });
+  assert.equal(lines.length, 2);
+});
+
+test("runs of whitespace never force a break on their own", () => {
+  const measure = (t) => t.length * 10;
+  const doc = fromText("aaa     bbb");
+  const { lines } = layout(doc, { measure, maxWidth: 75, fontSize: 20, lineHeight: 1.25 });
+  // the spaces hang; the ink is "aaa" + "bbb" = 60
+  assert.equal(lines.length, 1);
+});
+```
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `npm run test:richtext`
+Expected: FAIL on the first and third — 2 lines where 1 is wanted, or the wrong
+fragment split.
+
+- [ ] **Step 3: Charge only the ink**
+
+In `src/lib/richtext/layout.js`, inside `placeSegment`'s word loop:
+
+```js
+      for (const word of words(text)) {
+        const width = measure(word);
+        // Only the ink decides the break. A trailing space at a line break is
+        // hung, not drawn — the overlay is a browser and wraps that way, so
+        // charging the space here made a committed block wrap a word earlier
+        // than the editor showed and gain a line on click-away.
+        const ink = measure(word.trimEnd());
+        if (x + ink > available && fragments.length) flush();
+        if (ink <= available) { place(run, word, width); continue; }
+```
+
+The per-character fallback below it keeps using the full measurement: a word
+long enough to reach it has no trailing space of its own to hang.
+
+`place(run, word, width)` still advances `x` by the full width, spaces included
+— the next word has to start after the space, and the space is only free at a
+break.
+
+- [ ] **Step 4: Run the unit tests**
+
+Run: `npm run test:richtext`
+Expected: PASS, all of them. Existing layout tests must not change — if one now
+reports a different line count, stop and report it rather than editing the
+expectation: it means this change moved a break that was previously correct.
+
+- [ ] **Step 5: Prove it end to end, against the overlay itself**
+
+This is the test that matters, and it is stronger than the unit tests: it asserts
+the *editor* and the *canvas* agree, so any other source of disagreement is
+caught too, not just the trailing space.
+
+Add to `dev/app-harness.js`:
+
+```js
+  /** How many visual lines the overlay is showing, from the rendered boxes
+   *  rather than from our own layout — this is the browser's own wrapping. */
+  window.__overlayLineCount = () => {
+    const el = document.querySelector(".richtext-overlay");
+    if (!el) return 0;
+    const range = document.createRange();
+    let tops = new Set();
+    for (const block of el.querySelectorAll("[data-block]")) {
+      range.selectNodeContents(block);
+      for (const rect of range.getClientRects()) {
+        if (rect.width > 0) tops.add(Math.round(rect.top));
+      }
+    }
+    return tops.size;
+  };
+```
+
+Add to `dev/e2e-app.sh`, immediately before the `# ---------- 8.` section:
+
+```bash
+# ---------- 7g. the editor's wrapping and the canvas's agree ----------
+# Clicking away must not reflow the block. It used to gain a line: the layout
+# charged each word's trailing space to the line, where a browser hangs it.
+reset
+open_editor
+OVERLAY_LINES="$(js 'window.__overlayLineCount()')"
+$B press "Escape" >/dev/null
+sleep 1
+check "the canvas wraps exactly as the editor did" "$OVERLAY_LINES" "$(js 'window.__lineCount()')"
+```
+
+- [ ] **Step 6: Run the E2E suite**
+
+Run: `./dev/e2e-app.sh`
+Expected: 0 failed. The fixture's text is long enough to wrap, so the new case
+is meaningful; if `__overlayLineCount` and `__lineCount` both report 1, the
+fixture is not exercising a wrap — say so rather than leaving a test that
+proves nothing.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git checkout -- public/
+git add src/lib/richtext/layout.js src/lib/richtext/layout.test.js \
+        dev/app-harness.js dev/e2e-app.sh
+git commit -m "Hang a trailing space at a line break instead of charging it"
+```
+
 
 ## Where this plan departs from the spec
 
