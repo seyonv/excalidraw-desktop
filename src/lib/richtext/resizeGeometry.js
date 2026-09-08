@@ -15,12 +15,16 @@ export function edgeAt(bounds, point, zoom) {
   const [x1, y1, x2, y2] = bounds;
   const threshold = THRESHOLD / zoom;
   // Excalidraw tests the corner handles first, then the borders in the order
-  // n, e, s, w. Every corner handle sits diagonally outside the bounds
-  // (x1-10..x1-2 at zoom 1), and the n/s bands reach from 2*threshold outside
-  // to the bound itself — so all of them live outside the vertical span. A
-  // point strictly inside that span can only ever be an `e` or `w` grab.
-  if (point.y <= y1 || point.y >= y2) return null;
-  if (Math.abs(point.x - (x1 - threshold)) <= threshold) return "w";
-  if (Math.abs(point.x - (x2 + threshold)) <= threshold) return "e";
+  // n, e, s, w, and every one of those tests is a strict `distance < threshold`
+  // (`pointOnLineSegment`). So the n and s bands own everything up to but not
+  // including the bound itself, and the corner handles sit further out still —
+  // which leaves the whole span from y1 to y2 inclusive to e and w.
+  if (point.y < y1 || point.y > y2) return null;
+  // Strict here too, and for a sharper reason: at exactly x1 or x2 Excalidraw
+  // claims nothing, so the press is a normal one inside the selection and the
+  // block is being dragged to move it. Claiming that would turn a move into a
+  // re-wrap.
+  if (Math.abs(point.x - (x1 - threshold)) < threshold) return "w";
+  if (Math.abs(point.x - (x2 + threshold)) < threshold) return "e";
   return null;
 }

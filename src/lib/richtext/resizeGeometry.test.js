@@ -25,10 +25,14 @@ test("leaves the corner handles to Excalidraw", () => {
   assert.equal(edgeAt(bounds, { x: 306, y: 156 }, 1), null);
 });
 
-test("leaves the top and bottom bands to Excalidraw, which reads them first", () => {
-  // n and s are tested before e and w, so a point level with either bound is theirs
-  assert.equal(edgeAt(bounds, { x: 98, y: 50 }, 1), null);
-  assert.equal(edgeAt(bounds, { x: 302, y: 150 }, 1), null);
+test("claims the bound rows, which the n/s bands stop just short of", () => {
+  // the n band's test is a strict `distance < 4`, and at y === y1 the distance
+  // is exactly 4 — so Excalidraw falls through to a side grab here
+  assert.equal(edgeAt(bounds, { x: 98, y: 50 }, 1), "w");
+  assert.equal(edgeAt(bounds, { x: 302, y: 150 }, 1), "e");
+  // a row above the top bound is the n band's, and it is tested before w
+  assert.equal(edgeAt(bounds, { x: 98, y: 49 }, 1), null);
+  assert.equal(edgeAt(bounds, { x: 302, y: 151 }, 1), null);
 });
 
 test("claims a border grab close to a corner, as Excalidraw does", () => {
@@ -44,4 +48,11 @@ test("the bands are screen-sized, so they shrink as you zoom in", () => {
   // 6 scene px outside the border: inside the band at zoom 0.5, outside it at 2
   assert.equal(edgeAt(bounds, { x: 94, y: 100 }, 0.5), "w");
   assert.equal(edgeAt(bounds, { x: 94, y: 100 }, 2), null);
+});
+
+test("leaves the border line itself to a drag-to-move", () => {
+  // at exactly x1/x2 Excalidraw claims no handle at all, so the press is an
+  // ordinary one inside the selection: the block is being dragged, not resized
+  assert.equal(edgeAt(bounds, { x: 100, y: 100 }, 1), null);
+  assert.equal(edgeAt(bounds, { x: 300, y: 100 }, 1), null);
 });
