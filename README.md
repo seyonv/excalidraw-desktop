@@ -34,6 +34,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 | **Works offline**                | Needs the page loaded        | Fully native, no network at all                      |
 | **Opening a `.excalidraw` file** | Drag into the browser        | Double-click it in Finder / Explorer                 |
 | **Styling text**                 | One colour per text block    | Many styles inside one block — colour, highlight, underline, box, breakout |
+| **Resizing a text block**        | Drag scales the type with the box | Drag a side border to re-wrap at the same size; corners still scale |
 | **Driving it from an AI agent**  | Not possible                 | MCP server — Claude Code can draw and edit on the canvas |
 
 ### The sidebar
@@ -95,6 +96,13 @@ canvas can actually draw.
 Formatting is stored in the element's `customData` and rendered as ordinary
 Excalidraw elements, so the file stays a valid `.excalidraw` — open it anywhere
 else and the pixels are still right.
+
+**Resizing a block.** Drag its left or right border and the text re-wraps to the
+new width at the same font size — the block gets narrower and taller, not
+smaller. Drag a corner (or the top or bottom border) and box and type scale
+together, the way they always have. Shift is still Excalidraw's proportional
+resize. The two gestures are the same ones a plain text element already answers
+to; a block just used to ignore the first one.
 
 ## Your drawings are just files
 

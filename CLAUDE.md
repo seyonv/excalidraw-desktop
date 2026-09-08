@@ -114,6 +114,26 @@ starts formatting filenames, the seams have eroded.
   out at the same width, and that is not recoverable from the generated elements:
   a block that happens not to wrap says nothing about the width it was wrapped to.
 
+- **`readTransform` is the only way to learn where a block is and how big it
+  is.** `base.x/y`, `fontSize` and `maxWidth` are what the block was *authored*
+  at. Excalidraw scales a group by rewriting the elements, so the model goes
+  stale the moment anyone resizes one; reading the scale back off an element's
+  width (`richTextOffset.w`) is what stops an edit from snapping the block back
+  to its original size. Read the transform — never trust the stored base alone.
+- **The edge-drag hit test must stay conservative.** `edgeAt` claims a pointer
+  only where Excalidraw would unambiguously read `e` or `w` — never a corner,
+  never the n/s bands, which Excalidraw tests first. Claiming a drag that should
+  have been a corner drag breaks a gesture that works; declining one the user
+  meant for us just scales the block, which is what it did before.
+- **The overlay is `white-space: pre-wrap`, and `layout.js` must wrap the way it
+  does.** Two bugs came out of getting this wrong. Charging a word's trailing
+  space to the line made a committed block wrap a word earlier than the editor
+  showed and gain a line on click-away — pre-wrap *hangs* trailing whitespace at
+  a break, so only the ink decides where to break. But pre-wrap also *preserves*
+  every space it does not hang, so the advance must be the full measurement:
+  collapsing a run of spaces drew the canvas text left of where the editor put
+  it. Break on the ink, advance on the whole word.
+
 - **`updateScene` with no `elements` key wipes the scene.** Every call must pass
   the elements it wants to keep, even one that only means to change `appState`.
 
