@@ -85,11 +85,13 @@
     return JSON.stringify([...by.values()]);
   };
 
-  /** Drag one border of the selected block by `dx` scene pixels. Synthetic
-   *  pointer events, because the browse CDP allowlist has no
-   *  Input.dispatchMouseEvent — they reach our own listener, which is a plain
-   *  DOM one, exactly as a real drag would. */
-  window.__dragEdge = (edge, dx, opts = {}) => {
+  const DRAG_STEPS = 4;
+  /** pointerdown, then `DRAG_STEPS` incremental pointermoves toward the end
+   *  position — one synchronous move never exercises the multi-frame path
+   *  (the deferred-capture history bug lived there). Leaves the drag open, no
+   *  pointerup, so a caller can either release it (__dragEdge) or Escape out
+   *  of it mid-drag (__dragEdgeStart). */
+  const startDragEdge = (edge, dx, opts = {}) => {
     const block = rich();
     const xs = block.map((el) => el.x).concat(block.map((el) => el.x + el.width));
     const ys = block.map((el) => el.y).concat(block.map((el) => el.y + el.height));
@@ -109,10 +111,25 @@
     // which matters here since the whole point of the shift-drag case is that
     // Excalidraw, not us, handles it.
     (document.querySelector("canvas.interactive") ?? area).dispatchEvent(down);
-    window.dispatchEvent(new PointerEvent("pointermove", at(startX + dx, midY)));
-    window.dispatchEvent(new PointerEvent("pointerup", at(startX + dx, midY)));
-    return down.defaultPrevented;
+    for (let i = 1; i <= DRAG_STEPS; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", at(startX + (dx * i) / DRAG_STEPS, midY)));
+    }
+    return { defaultPrevented: down.defaultPrevented, at, endX: startX + dx, midY };
   };
+
+  /** Drag one border of the selected block by `dx` scene pixels, start to
+   *  finish. Synthetic pointer events, because the browse CDP allowlist has no
+   *  Input.dispatchMouseEvent — they reach our own listener, which is a plain
+   *  DOM one, exactly as a real drag would. */
+  window.__dragEdge = (edge, dx, opts = {}) => {
+    const { defaultPrevented, at, endX, midY } = startDragEdge(edge, dx, opts);
+    window.dispatchEvent(new PointerEvent("pointerup", at(endX, midY)));
+    return defaultPrevented;
+  };
+
+  /** Same as __dragEdge but leaves the drag open — no pointerup — so a
+   *  mid-drag Escape can be exercised. */
+  window.__dragEdgeStart = (edge, dx, opts = {}) => startDragEdge(edge, dx, opts).defaultPrevented;
 
   /** Distinct text-element rows in the block — how many lines it wrapped to. */
   window.__lineCount = () =>

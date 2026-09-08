@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toElements, readModel, readTransform, isRichText } from "./elements.js";
+import { toElements, readModel, readTransform, isRichText, blockIdFor } from "./elements.js";
 import { layout } from "./layout.js";
 import { fromText, applyStyle } from "./model.js";
 
@@ -148,4 +148,12 @@ test("laying the same doc out narrower wraps more without changing the font", ()
   const lines = (els) => new Set(els.filter((e) => e.type === "text").map((e) => e.y)).size;
   assert.ok(lines(narrow) > lines(wide));
   assert.equal(narrow[0].fontSize, wide[0].fontSize);
+});
+
+test("blockIdFor keeps an original's id", () => {
+  assert.equal(blockIdFor("rtg-rt1", "rt1"), "rt1");
+});
+
+test("blockIdFor gives a copy its own id, keyed off the regenerated group", () => {
+  assert.equal(blockIdFor("dupg-xyz", "rt1"), "rt-dupg-xyz");
 });

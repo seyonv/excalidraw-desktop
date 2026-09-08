@@ -4,6 +4,12 @@ const HIGHLIGHT_BLEED = 2;
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${Date.now().toString(36)}-${seq++}`;
 
+/** A block's identity. A copy carries the original's `richTextId` in its
+ *  duplicated `customData`, so the group id — which Excalidraw regenerates on
+ *  duplicate — is what tells them apart. */
+export const blockIdFor = (groupId, richTextId) =>
+  (groupId && groupId !== `rtg-${richTextId}` ? `rt-${groupId}` : richTextId);
+
 /** Fields every Excalidraw element needs. Kept in one place so the four element
  *  builders below stay readable. */
 function common(overrides) {

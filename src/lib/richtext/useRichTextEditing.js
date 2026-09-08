@@ -4,7 +4,7 @@ import { ACT_FOR_KEY } from "../../components/RichTextOverlay";
 import { fromText } from "./model";
 import { layout } from "./layout";
 import { canvasMeasure, fontsReady } from "./measure";
-import { isRichText, readModel, readTransform, toElements } from "./elements";
+import { blockIdFor, isRichText, readModel, readTransform, toElements } from "./elements";
 
 const BOX_PADDING = 6;
 
@@ -68,11 +68,16 @@ export function useRichTextEditing({ apiRef, containerRef }) {
       const hidden = all.filter((el) => elementIds.includes(el.id));
       const next = { doc: blocks, base, elementIds, hidden, initialAct };
       editingRef.current = next;
-      // NEVER keeps this transient removal out of undo history, so the whole
-      // edit is one undo step rather than two.
+      // EVENTUALLY defers this into the next IMMEDIATELY rather than excluding
+      // it from history: NEVER instead replaces the undo baseline with "block
+      // absent", so the commit's IMMEDIATELY would capture a delta from that —
+      // undoing a finished edit would delete the block instead of restoring
+      // the previous text. EVENTUALLY keeps the baseline at the pre-edit state
+      // and folds this removal into the commit's step, so the whole edit is
+      // one undo step rather than two.
       api.updateScene({
         elements: all.filter((el) => !elementIds.includes(el.id)),
-        captureUpdate: CaptureUpdateAction.NEVER,
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
       });
       setEditing(next);
       setEditScreen(screenFor(base));
@@ -152,7 +157,7 @@ export function useRichTextEditing({ apiRef, containerRef }) {
         claim();
         // A copy has to stop answering to the original's id, or the next edit
         // of either one finds both again through the model stored on it.
-        const id = groupId && groupId !== `rtg-${richTextId}` ? `rt-${groupId}` : richTextId;
+        const id = blockIdFor(groupId, richTextId);
         // The block may have been scaled since it was written. Reading the
         // scale off the elements is what stops the edit from snapping it back.
         const t = readTransform(group);

@@ -197,13 +197,47 @@ check "the width stops at the floor" "80" \
 check "the origin did not move on an e drag" "120" \
   "$(js '(b=>String(b.x))(JSON.parse(window.__blockBase()))')"
 
-# shift is the scale gesture and stays Excalidraw's
+# the block stays selected, so a second drag needs no click in between
 reset
 js "window.__selectRich()" >/dev/null
+js 'window.__dragEdge("e", -80)' >/dev/null
+sleep 1
+W1="$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
+check "a second drag needs no re-selection" "true" "$(js 'String(window.__dragEdge("e", -60))')"
+sleep 1
+check "and it narrows the box again" "true" \
+  "$(js "String(JSON.parse(window.__blockBase()).maxWidth < $W1)")"
+
+# shift is the scale gesture and stays Excalidraw's — __dragEdge dispatches
+# pointermove/pointerup on window, which does not drive Excalidraw's own drag
+# machinery, so only "our hook left it alone" is provable here; whether
+# Excalidraw itself scaled anything is manual-only.
+reset
+js "window.__selectRich()" >/dev/null
+W_BEFORE="$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
 check "a shift drag is not claimed" "false" \
   "$(js 'String(window.__dragEdge("e", -160, { shift: true }))')"
-check "a shift drag changes nothing on its own" "$(js 'window.__lineCount()')" \
-  "$(js 'window.__lineCount()')"
+sleep 1
+check "a shift drag does not re-wrap the block" "$W_BEFORE" \
+  "$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
+
+# Escape mid-drag restores the pre-drag box and stays out of undo history
+reset
+js "window.__selectRich()" >/dev/null
+X_BEFORE="$(js '(b=>String(b.x))(JSON.parse(window.__blockBase()))')"
+W_BEFORE="$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
+LINES_BEFORE="$(js 'window.__lineCount()')"
+js 'window.__dragEdgeStart("e", -160)' >/dev/null
+sleep 1
+check "the box narrowed mid-drag" "true" \
+  "$(js "String(JSON.parse(window.__blockBase()).maxWidth < $W_BEFORE)")"
+js '(window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })), "ok")' >/dev/null
+sleep 1
+check "escape restores the pre-drag origin" "$X_BEFORE" \
+  "$(js '(b=>String(b.x))(JSON.parse(window.__blockBase()))')"
+check "escape restores the pre-drag width" "$W_BEFORE" \
+  "$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
+check "escape restores the pre-drag wrap" "$LINES_BEFORE" "$(js 'window.__lineCount()')"
 
 # a re-wrapped block still opens for editing, at the new width
 reset

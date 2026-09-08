@@ -6,7 +6,7 @@ import {
 } from "@excalidraw/excalidraw";
 import { layout } from "./layout";
 import { canvasMeasure } from "./measure";
-import { isRichText, readModel, readTransform, toElements } from "./elements";
+import { blockIdFor, isRichText, readModel, readTransform, toElements } from "./elements";
 import { edgeAt } from "./resizeGeometry";
 
 // Must match useRichTextEditing, or a block re-wrapped by a drag and a block
@@ -29,12 +29,18 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
     if (!area) return undefined;
 
     // Set while we own a drag: the block's model, the base it is being laid out
-    // from, the anchored right edge for a `w` drag, and the ids we last wrote.
+    // from, the anchored right edge for a `w` drag, the offset between the
+    // grabbed point and the box edge being dragged, whether any pointermove
+    // has landed yet, and the ids we last wrote.
     let drag = null;
 
-    /** Lay the block out at `maxWidth`/`x` and put it in the scene. */
+    /** Lay the block out at `maxWidth`/`x` and put it in the scene, keeping it
+     *  selected — `toElements` mints fresh ids every render, so without this
+     *  the stale selection matches nothing and the block ends the drag
+     *  deselected, which makes a second consecutive drag impossible. */
     const render = (base, capture) => {
       const api = apiRef.current;
+      if (!api) return;
       const laidOut = layout(drag.doc, {
         measure: canvasMeasure(base.fontSize, base.fontFamily),
         maxWidth: base.maxWidth,
@@ -44,45 +50,90 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
       });
       const next = toElements(drag.doc, laidOut, base);
       const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
-      api.updateScene({ elements: [...rest, ...next], captureUpdate: capture });
+      api.updateScene({
+        elements: [...rest, ...next],
+        appState: {
+          ...api.getAppState(),
+          selectedElementIds: Object.fromEntries(next.map((el) => [el.id, true])),
+        },
+        captureUpdate: capture,
+      });
       drag.ids = new Set(next.map((el) => el.id));
     };
 
     const finish = () => {
       window.removeEventListener("pointermove", onPointerMove, true);
       window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
       window.removeEventListener("keydown", onKeyDown, true);
       drag = null;
     };
 
     const onPointerMove = (event) => {
       if (!drag) return;
-      const api = apiRef.current;
-      const { x } = viewportCoordsToSceneCoords(event, api.getAppState());
-      const min = drag.base.fontSize * 4;
-      const base = drag.edge === "e"
-        ? { ...drag.base, maxWidth: Math.max(min, x - drag.base.x) }
-        // dragging the left border leaves the right edge where it is
-        : { ...drag.base, x: Math.min(x, drag.right - min), maxWidth: Math.max(min, drag.right - x) };
-      drag.base = base;
-      render(base, CaptureUpdateAction.NEVER);
+      try {
+        drag.moved = true;
+        const api = apiRef.current;
+        if (!api) return;
+        const { x } = viewportCoordsToSceneCoords(event, api.getAppState());
+        // The border is drawn on the ink (where `edgeAt` hit-tests), but the
+        // value being dragged is the box edge, and greedy wrapping leaves a
+        // ragged gap between them — 64px on the fixture. Without this offset
+        // the block would jump by that gap the instant the drag started.
+        const edgeX = x + drag.grabOffset;
+        const min = drag.base.fontSize * 4;
+        const base = drag.edge === "e"
+          ? { ...drag.base, maxWidth: Math.max(min, edgeX - drag.base.x) }
+          // dragging the left border leaves the right edge where it is
+          : { ...drag.base, x: Math.min(edgeX, drag.right - min), maxWidth: Math.max(min, drag.right - edgeX) };
+        drag.base = base;
+        // EVENTUALLY defers this frame into the next IMMEDIATELY rather than
+        // excluding it from history: NEVER instead replaces the undo baseline
+        // with this frame's state, so pointerup's IMMEDIATELY would capture a
+        // delta from the *last* intermediate frame — same geometry, different
+        // element ids — and undo would appear to do nothing.
+        render(base, CaptureUpdateAction.EVENTUALLY);
+      } catch (e) {
+        finish();
+        throw e;
+      }
     };
 
     const onPointerUp = () => {
       if (!drag) return;
-      // One undo step for the whole drag: every frame so far was NEVER.
-      render(drag.base, CaptureUpdateAction.IMMEDIATELY);
+      if (drag.moved) {
+        // One undo step for the whole drag: every intermediate frame was
+        // EVENTUALLY — deferred, not discarded — and this IMMEDIATELY folds
+        // all of them into one delta from the pre-drag baseline.
+        render(drag.base, CaptureUpdateAction.IMMEDIATELY);
+      }
+      // No pointermove landed: a stray click on the border. Rendering anyway
+      // would regenerate every element with fresh ids and seeds for no visible
+      // change — an undo step and a full file rewrite with nothing to show.
+      finish();
+    };
+
+    const onPointerCancel = () => {
       finish();
     };
 
     const onKeyDown = (event) => {
       if (!drag || event.key !== "Escape") return;
+      // Excalidraw's own Escape handler deselects; stop it from also seeing
+      // this one, or the restored block loses its selection.
+      event.stopPropagation();
       const api = apiRef.current;
-      const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
-      api.updateScene({
-        elements: [...rest, ...drag.hidden],
-        captureUpdate: CaptureUpdateAction.NEVER,
-      });
+      if (api) {
+        const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
+        // EVENTUALLY, not NEVER: every frame so far was itself deferred, so the
+        // undo baseline is still the pre-drag state. Restoring the hidden
+        // elements this way keeps it that way — no history entry, and nothing
+        // to undo past, exactly as if the drag had never happened.
+        api.updateScene({
+          elements: [...rest, ...drag.hidden],
+          captureUpdate: CaptureUpdateAction.EVENTUALLY,
+        });
+      }
       finish();
     };
 
@@ -109,8 +160,7 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
       const t = readTransform(group);
       const scale = t?.scale ?? 1;
       const richTextId = selected[0].customData.richTextId;
-      // Same rule as the editor: a copy stops answering to the original's id.
-      const id = groupId !== `rtg-${richTextId}` ? `rt-${groupId}` : richTextId;
+      const id = blockIdFor(groupId, richTextId);
       const base = {
         ...model.base,
         ...(t ? { x: t.x, y: t.y } : {}),
@@ -123,16 +173,21 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
       // Claim it before Excalidraw's own pointer handling starts a resize.
       event.preventDefault();
       event.stopPropagation();
+      const right = base.x + base.maxWidth;
+      const grabbed = edge === "e" ? right : base.x;
       drag = {
         edge,
         base,
         doc: model.blocks,
         hidden: group,
         ids: new Set(group.map((el) => el.id)),
-        right: base.x + base.maxWidth,
+        right,
+        grabOffset: grabbed - point.x,
+        moved: false,
       };
       window.addEventListener("pointermove", onPointerMove, true);
       window.addEventListener("pointerup", onPointerUp, true);
+      window.addEventListener("pointercancel", onPointerCancel, true);
       window.addEventListener("keydown", onKeyDown, true);
     };
 
