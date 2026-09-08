@@ -68,16 +68,15 @@ export function layout(doc, opts) {
 
       for (const word of words(text)) {
         const core = word.trimEnd();
-        // Only the ink decides the break. A trailing space at a line break is
-        // hung, not drawn — the overlay is a browser and wraps that way, so
-        // charging the space here made a committed block wrap a word earlier
-        // than the editor showed and gain a line on click-away. A browser
-        // also collapses a run of trailing whitespace to a single space when
-        // it is *not* hung, so a raw multi-space run must not be measured
-        // character by character either — that would charge width the
-        // overlay never renders.
+        // Only the ink decides the break: `white-space: pre-wrap` on the
+        // overlay (RichTextOverlay.css) hangs trailing whitespace at a line
+        // break rather than counting it, and charging it here made a committed
+        // block wrap a word earlier than the editor showed. The advance is the
+        // full measurement, spaces included — pre-wrap preserves every one of
+        // them, so collapsing a run here would draw the canvas text left of
+        // where the editor put it.
         const ink = measure(core);
-        const width = core.length < word.length ? measure(core + " ") : ink;
+        const width = measure(word);
         if (x + ink > available && fragments.length) flush();
         if (ink <= available) { place(run, word, width); continue; }
         // A single word wider than a whole line has no whitespace to break on,

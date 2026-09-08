@@ -145,10 +145,23 @@ test("a word whose own ink overflows still breaks", () => {
   assert.equal(lines.length, 2);
 });
 
-test("runs of whitespace never force a break on their own", () => {
+test("a run of spaces is preserved in the advance, as pre-wrap renders it", () => {
   const measure = (t) => t.length * 10;
+  // the overlay is `white-space: pre-wrap`, so all five spaces are drawn and
+  // all five push "bbb" to the right — collapsing them here would put the
+  // canvas text left of where the editor showed it
+  const doc = fromText("aaa     bbb");
+  const { lines } = layout(doc, { measure, maxWidth: 200, fontSize: 20, lineHeight: 1.25 });
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].fragments.map((f) => f.text).join(""), "aaa     bbb");
+  assert.equal(lines[0].fragments.reduce((w, f) => w + f.width, 0), 110);
+});
+
+test("a run of spaces hangs at a break rather than fitting the line", () => {
+  const measure = (t) => t.length * 10;
+  // 110 of advance against 75 available: "bbb" cannot fit, and the spaces
+  // before it hang off the end of the first line
   const doc = fromText("aaa     bbb");
   const { lines } = layout(doc, { measure, maxWidth: 75, fontSize: 20, lineHeight: 1.25 });
-  // the spaces hang; the ink is "aaa" + "bbb" = 60
-  assert.equal(lines.length, 1);
+  assert.equal(lines.length, 2);
 });
