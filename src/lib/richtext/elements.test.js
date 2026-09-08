@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toElements, readModel, readOrigin, isRichText } from "./elements.js";
+import { toElements, readModel, readTransform, isRichText } from "./elements.js";
 import { layout } from "./layout.js";
 import { fromText, applyStyle } from "./model.js";
 
@@ -104,15 +104,48 @@ test("the origin is recoverable from any element, however the block was moved", 
   // a highlight bleeds left of the origin, so the minimum x is not it
   const doc = applyStyle(fromText("aaa bbb"), 0, 3, "hl", true);
   const els = build(doc);
-  assert.deepEqual(readOrigin(els), { x: 100, y: 50 });
+  assert.deepEqual(readTransform(els), { x: 100, y: 50, scale: 1 });
   // dragging the block moves the elements and leaves base.x/y stale; the
   // recovered origin is where the block actually is now
   const moved = els.map((e) => ({ ...e, x: e.x + 30, y: e.y - 12 }));
-  assert.deepEqual(readOrigin(moved), { x: 130, y: 38 });
+  assert.deepEqual(readTransform(moved), { x: 130, y: 38, scale: 1 });
   // and any single survivor is enough
-  assert.deepEqual(readOrigin([moved[moved.length - 1]]), { x: 130, y: 38 });
+  assert.deepEqual(readTransform([moved[moved.length - 1]]), { x: 130, y: 38, scale: 1 });
 });
 
-test("readOrigin reports nothing for elements that never carried an offset", () => {
-  assert.equal(readOrigin([{ x: 1, y: 2, customData: { richTextId: "rt1" } }]), null);
+test("readTransform gives the origin and unit scale for an untouched block", () => {
+  const doc = applyStyle(fromText("aaa bbb"), 0, 3, "hl", true);
+  assert.deepEqual(readTransform(build(doc)), { x: 100, y: 50, scale: 1 });
+});
+
+test("readTransform tracks a block that was scaled and then moved", () => {
+  const doc = applyStyle(fromText("aaa bbb"), 0, 3, "hl", true);
+  // what Excalidraw's resizeMultipleElements does to a group: every element
+  // scaled about the selection anchor, text elements' fontSize with it
+  const anchor = { x: 60, y: 20 };
+  const scaled = build(doc).map((e) => ({
+    ...e,
+    x: anchor.x + (e.x - anchor.x) * 1.5 + 7,
+    y: anchor.y + (e.y - anchor.y) * 1.5 - 4,
+    width: e.width * 1.5,
+    height: e.height * 1.5,
+  }));
+  const t = readTransform(scaled);
+  assert.ok(Math.abs(t.scale - 1.5) < 1e-9);
+  // the origin follows the same transform the elements did
+  assert.ok(Math.abs(t.x - (anchor.x + (100 - anchor.x) * 1.5 + 7)) < 1e-9);
+  assert.ok(Math.abs(t.y - (anchor.y + (50 - anchor.y) * 1.5 - 4)) < 1e-9);
+});
+
+test("readTransform reports nothing for elements that never carried an offset", () => {
+  assert.equal(readTransform([{ x: 1, y: 2, customData: { richTextId: "rt1" } }]), null);
+});
+
+test("laying the same doc out narrower wraps more without changing the font", () => {
+  const doc = fromText("aaa bbb ccc ddd");
+  const wide = toElements(doc, layout(doc, opts), base);
+  const narrow = toElements(doc, layout(doc, { ...opts, maxWidth: 80 }), { ...base, maxWidth: 80 });
+  const lines = (els) => new Set(els.filter((e) => e.type === "text").map((e) => e.y)).size;
+  assert.ok(lines(narrow) > lines(wide));
+  assert.equal(narrow[0].fontSize, wide[0].fontSize);
 });

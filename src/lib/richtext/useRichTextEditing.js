@@ -4,7 +4,7 @@ import { ACT_FOR_KEY } from "../../components/RichTextOverlay";
 import { fromText } from "./model";
 import { layout } from "./layout";
 import { canvasMeasure, fontsReady } from "./measure";
-import { isRichText, readModel, readOrigin, toElements } from "./elements";
+import { isRichText, readModel, readTransform, toElements } from "./elements";
 
 const BOX_PADDING = 6;
 
@@ -153,11 +153,17 @@ export function useRichTextEditing({ apiRef, containerRef }) {
         // A copy has to stop answering to the original's id, or the next edit
         // of either one finds both again through the model stored on it.
         const id = groupId && groupId !== `rtg-${richTextId}` ? `rt-${groupId}` : richTextId;
+        // The block may have been scaled since it was written. Reading the
+        // scale off the elements is what stops the edit from snapping it back.
+        const t = readTransform(group);
+        const scale = t?.scale ?? 1;
         openEditor(
           model.blocks,
           {
             ...model.base,
-            ...(readOrigin(group) ?? {}),
+            ...(t ? { x: t.x, y: t.y } : {}),
+            fontSize: model.base.fontSize * scale,
+            maxWidth: model.base.maxWidth * scale,
             id,
             groupId: groupId ?? `rtg-${id}`,
           },

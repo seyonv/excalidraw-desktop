@@ -124,6 +124,36 @@
     return window.__blocks();
   };
 
+  /** What Excalidraw's resizeMultipleElements does to a group: every element
+   *  scaled about the selection anchor, text elements' fontSize with it
+   *  (`measureFontSizeFromWidth`, chunk-4FTI6OG3.js:24344). Applied directly
+   *  because Excalidraw's own resize needs canvas focus the harness never gets. */
+  window.__scaleRich = (factor) => {
+    const all = api.getSceneElements();
+    const block = all.filter((el) => el.customData?.richTextId);
+    const ax = Math.min(...block.map((el) => el.x));
+    const ay = Math.min(...block.map((el) => el.y));
+    api.updateScene({
+      elements: all.map((el) => (el.customData?.richTextId
+        ? {
+            ...el,
+            x: ax + (el.x - ax) * factor,
+            y: ay + (el.y - ay) * factor,
+            width: el.width * factor,
+            height: el.height * factor,
+            ...(el.type === "text" ? { fontSize: el.fontSize * factor } : {}),
+          }
+        : el)),
+    });
+    return window.__blocks();
+  };
+
+  /** The font size the overlay is rendering at, as a number. */
+  window.__overlayFontSize = () => {
+    const el = document.querySelector(".richtext-overlay");
+    return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
+  };
+
   window.__overlayOpen = () => Boolean(document.querySelector(".richtext-overlay"));
 
   /** Excalidraw's own text editor: the textarea it mounts over the canvas. */

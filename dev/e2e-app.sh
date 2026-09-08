@@ -143,6 +143,24 @@ sleep 1
 check "the edit stays at the moved position" "320,270" \
   "$(js '(b=>b.x+","+b.y)(JSON.parse(window.__blocks())[0])')"
 
+# ---------- 7e. a scaled block keeps its scaled size ----------
+# The model still carries the fontSize and maxWidth the block was authored at,
+# so an edit used to lay out at the old size and snap the block back.
+reset
+js "window.__scaleRich(2)" >/dev/null
+sleep 1
+SCALED_X="$(js '(b=>b.x)(JSON.parse(window.__blocks())[0])')"
+open_editor
+check "the overlay opens at the scaled font size" "40" "$(js 'String(window.__overlayFontSize())')"
+$B press "ArrowRight" >/dev/null
+$B type "!" >/dev/null
+$B press "Escape" >/dev/null
+sleep 1
+check "the commit keeps the scale" "40" \
+  "$(js 'String(window.__api.getSceneElements().find(e=>e.type==="text"&&e.customData?.richTextId).fontSize)')"
+check "the commit keeps the position" "$SCALED_X" \
+  "$(js '(b=>String(b.x))(JSON.parse(window.__blocks())[0])')"
+
 # ---------- 8. the quit-and-reopen path, through the real file format ----------
 # serializeScene + parseScene are the exact pair the app writes and reads files
 # with, so this is the round trip minus the disk hop.

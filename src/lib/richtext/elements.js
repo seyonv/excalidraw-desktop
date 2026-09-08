@@ -50,7 +50,10 @@ export function toElements(doc, laidOut, base) {
   const stamp = (el) => common({
     ...el,
     groupIds: [groupId],
-    customData: { ...meta, richTextOffset: { dx: el.x - originX, dy: el.y - originY } },
+    customData: {
+      ...meta,
+      richTextOffset: { dx: el.x - originX, dy: el.y - originY, w: el.width },
+    },
   });
   const behind = [];
   const front = [];
@@ -113,12 +116,25 @@ export function toElements(doc, laidOut, base) {
   return [...behind, ...front];
 }
 
-/** Where the block's origin is *now*, read back from any element that survived.
- *  A duplicated or moved block carries a stale `base.x/y`; this is the truth. */
-export function readOrigin(elements) {
+/** Where the block is *now* and how much it has been scaled, read back from the
+ *  elements. `base.x/y`, `fontSize` and `maxWidth` are only what the block was
+ *  authored at: moving, duplicating or resizing it leaves all four stale.
+ *
+ *  A text element is the witness, because its width is always positive — an
+ *  underline is a `line` whose width is 0 for an empty fragment, and a scale
+ *  cannot be read from it. */
+export function readTransform(elements) {
   for (const el of elements) {
     const off = el?.customData?.richTextOffset;
-    if (off) return { x: el.x - off.dx, y: el.y - off.dy };
+    if (!off || el.type !== "text" || !(off.w > 0) || !(el.width > 0)) continue;
+    const scale = el.width / off.w;
+    return { x: el.x - off.dx * scale, y: el.y - off.dy * scale, scale };
+  }
+  // Blocks stamped before `w` existed still know where they are, but not how
+  // much they were scaled.
+  for (const el of elements) {
+    const off = el?.customData?.richTextOffset;
+    if (off) return { x: el.x - off.dx, y: el.y - off.dy, scale: 1 };
   }
   return null;
 }
