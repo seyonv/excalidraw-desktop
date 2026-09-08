@@ -85,6 +85,46 @@
     return JSON.stringify([...by.values()]);
   };
 
+  /** Drag one border of the selected block by `dx` scene pixels. Synthetic
+   *  pointer events, because the browse CDP allowlist has no
+   *  Input.dispatchMouseEvent — they reach our own listener, which is a plain
+   *  DOM one, exactly as a real drag would. */
+  window.__dragEdge = (edge, dx, opts = {}) => {
+    const block = rich();
+    const xs = block.map((el) => el.x).concat(block.map((el) => el.x + el.width));
+    const ys = block.map((el) => el.y).concat(block.map((el) => el.y + el.height));
+    const x1 = Math.min(...xs), x2 = Math.max(...xs);
+    const y1 = Math.min(...ys), y2 = Math.max(...ys);
+    const at = (sceneX, sceneY) => {
+      const p = window.__sceneToViewport({ sceneX, sceneY }, api.getAppState());
+      return { clientX: p.x, clientY: p.y, bubbles: true, cancelable: true,
+               button: 0, shiftKey: Boolean(opts.shift) };
+    };
+    const midY = (y1 + y2) / 2;
+    const startX = edge === "e" ? x2 + 2 : x1 - 2;
+    const down = new PointerEvent("pointerdown", at(startX, midY));
+    // Dispatched on the canvas, not the container, matching __dblclick above:
+    // React only delivers events to the target's own ancestor path, so an
+    // event raised on the container is invisible to Excalidraw's handlers —
+    // which matters here since the whole point of the shift-drag case is that
+    // Excalidraw, not us, handles it.
+    (document.querySelector("canvas.interactive") ?? area).dispatchEvent(down);
+    window.dispatchEvent(new PointerEvent("pointermove", at(startX + dx, midY)));
+    window.dispatchEvent(new PointerEvent("pointerup", at(startX + dx, midY)));
+    return down.defaultPrevented;
+  };
+
+  /** Distinct text-element rows in the block — how many lines it wrapped to. */
+  window.__lineCount = () =>
+    new Set(rich().filter((e) => e.type === "text").map((e) => Math.round(e.y))).size;
+
+  window.__fontSize = () =>
+    rich().find((e) => e.type === "text")?.fontSize ?? 0;
+
+  /** The right-hand edge of the block, for checking a `w` drag anchors it. */
+  window.__rightEdge = () =>
+    Math.round(Math.max(...rich().map((e) => e.x + e.width)));
+
   /** Excalidraw's own duplicate (element/duplicate.ts `duplicateElement`): deep
    *  copy, fresh element id, fresh group ids, everything else — customData
    *  included — carried over verbatim, offset like alt-drag or Cmd+D. Done here

@@ -161,6 +161,54 @@ check "the commit keeps the scale" "40" \
 check "the commit keeps the position" "$SCALED_X" \
   "$(js '(b=>String(b.x))(JSON.parse(window.__blocks())[0])')"
 
+# ---------- 7f. dragging a border re-wraps instead of scaling ----------
+reset
+js "window.__selectRich()" >/dev/null
+LINES_BEFORE="$(js 'window.__lineCount()')"
+FONT_BEFORE="$(js 'window.__fontSize()')"
+check "the drag is claimed" "true" "$(js 'String(window.__dragEdge("e", -160))')"
+sleep 1
+check "it wrapped to more lines" "true" \
+  "$(js "String(window.__lineCount() > $LINES_BEFORE)")"
+check "the font size is untouched" "$FONT_BEFORE" "$(js 'window.__fontSize()')"
+check "the origin stays put" "120" "$(js '(b=>String(b.x))(JSON.parse(window.__blocks())[0])')"
+
+# dragging the left border anchors the right one
+reset
+js "window.__selectRich()" >/dev/null
+RIGHT_BEFORE="$(js 'window.__rightEdge()')"
+js 'window.__dragEdge("w", 120)' >/dev/null
+sleep 1
+check "a left drag anchors the right edge" "$RIGHT_BEFORE" "$(js 'window.__rightEdge()')"
+check "a left drag moves the origin" "true" \
+  "$(js '(b=>String(b.x>120))(JSON.parse(window.__blocks())[0])')"
+
+# the width floor
+reset
+js "window.__selectRich()" >/dev/null
+js 'window.__dragEdge("e", -600)' >/dev/null
+sleep 1
+check "the width stops at the floor" "true" \
+  "$(js 'String(window.__rightEdge() - JSON.parse(window.__blocks())[0].x >= 79)')"
+
+# shift is the scale gesture and stays Excalidraw's
+reset
+js "window.__selectRich()" >/dev/null
+check "a shift drag is not claimed" "false" \
+  "$(js 'String(window.__dragEdge("e", -160, { shift: true }))')"
+check "a shift drag changes nothing on its own" "$(js 'window.__lineCount()')" \
+  "$(js 'window.__lineCount()')"
+
+# a re-wrapped block still opens for editing, at the new width
+reset
+js "window.__selectRich()" >/dev/null
+js 'window.__dragEdge("e", -160)' >/dev/null
+sleep 1
+open_editor
+check "a re-wrapped block still opens" "true" "$(js 'window.__overlayOpen()')"
+check "it opens at the re-wrapped width" "true" \
+  "$(js 'String(window.__overlayText().includes("Ship on Tuesday"))')"
+
 # ---------- 8. the quit-and-reopen path, through the real file format ----------
 # serializeScene + parseScene are the exact pair the app writes and reads files
 # with, so this is the round trip minus the disk hop.

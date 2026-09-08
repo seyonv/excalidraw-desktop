@@ -4,10 +4,11 @@
 // build: `vite build` takes only index.html.
 import { useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, sceneCoordsToViewportCoords } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import RichTextOverlay from "../src/components/RichTextOverlay.jsx";
 import { useRichTextEditing } from "../src/lib/richtext/useRichTextEditing.js";
+import { useRichTextResize } from "../src/lib/richtext/useRichTextResize.js";
 import { applyStyle, fromText } from "../src/lib/richtext/model.js";
 import { layout } from "../src/lib/richtext/layout.js";
 import { canvasMeasure } from "../src/lib/richtext/measure.js";
@@ -53,8 +54,9 @@ const INITIAL = toElements(
 function Harness() {
   const apiRef = useRef(null);
   const areaRef = useRef(null);
-  const { editing, editScreen, commitEditing, cancelEditing } =
+  const { editing, editScreen, commitEditing, cancelEditing, isEditingRef } =
     useRichTextEditing({ apiRef, containerRef: areaRef });
+  useRichTextResize({ apiRef, containerRef: areaRef, isEditingRef });
 
   return (
     <div ref={areaRef} style={{ position: "relative", width: "100vw", height: "100vh" }}>
@@ -67,6 +69,7 @@ function Harness() {
           // so the harness can round-trip the scene through the file format.
           window.__serializeScene = serializeScene;
           window.__parseScene = parseScene;
+          window.__sceneToViewport = sceneCoordsToViewportCoords;
         }}
         initialData={{ elements: INITIAL, appState: { viewBackgroundColor: "#ffffff" } }}
       />

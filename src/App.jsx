@@ -5,6 +5,7 @@ import "./App.css";
 import Sidebar from "./components/Sidebar";
 import RichTextOverlay from "./components/RichTextOverlay";
 import { useRichTextEditing } from "./lib/richtext/useRichTextEditing";
+import { useRichTextResize } from "./lib/richtext/useRichTextResize";
 import {
   createDrawing,
   deleteDrawing,
@@ -66,6 +67,7 @@ function App() {
     cancelEditing,
     isEditingRef,
   } = useRichTextEditing({ apiRef, containerRef: canvasAreaRef });
+  useRichTextResize({ apiRef, containerRef: canvasAreaRef, isEditingRef });
 
   const refreshList = useCallback(async () => {
     setDrawings(await listDrawings());
