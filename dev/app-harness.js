@@ -228,6 +228,22 @@
 
   window.__overlayOpen = () => Boolean(document.querySelector(".richtext-overlay"));
 
+  /** How many visual lines the overlay is showing, from the rendered boxes
+   *  rather than from our own layout — this is the browser's own wrapping. */
+  window.__overlayLineCount = () => {
+    const el = document.querySelector(".richtext-overlay");
+    if (!el) return 0;
+    const range = document.createRange();
+    let tops = new Set();
+    for (const block of el.querySelectorAll("[data-block]")) {
+      range.selectNodeContents(block);
+      for (const rect of range.getClientRects()) {
+        if (rect.width > 0) tops.add(Math.round(rect.top));
+      }
+    }
+    return tops.size;
+  };
+
   /** Excalidraw's own text editor: the textarea it mounts over the canvas. */
   window.__nativeEditorOpen = () =>
     Boolean(api.getAppState().editingTextElement) ||

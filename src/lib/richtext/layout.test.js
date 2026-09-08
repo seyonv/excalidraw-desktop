@@ -123,3 +123,32 @@ test("no text element ever carries a newline", () => {
     for (const frag of line.fragments) assert.ok(!frag.text.includes("\n"));
   }
 });
+
+/* ---------- trailing whitespace hangs at a break ---------- */
+
+test("a trailing space is hung at a break, not charged to the line", () => {
+  const measure = (t) => t.length * 10;
+  // "aaa bbb" is 70 of ink. The space after "bbb" exists only because "ccc"
+  // follows it, and a browser does not count it when breaking.
+  const doc = fromText("aaa bbb ccc");
+  const { lines } = layout(doc, { measure, maxWidth: 75, fontSize: 20, lineHeight: 1.25 });
+  assert.equal(lines.length, 2);
+  assert.deepEqual(lines.map((l) => l.fragments.map((f) => f.text).join("")), ["aaa bbb ", "ccc"]);
+});
+
+test("a word whose own ink overflows still breaks", () => {
+  const measure = (t) => t.length * 10;
+  // "bbb" is 30 of ink and only 20 is left after "aaa " — hanging the space
+  // must not turn into never breaking
+  const doc = fromText("aaa bbb");
+  const { lines } = layout(doc, { measure, maxWidth: 60, fontSize: 20, lineHeight: 1.25 });
+  assert.equal(lines.length, 2);
+});
+
+test("runs of whitespace never force a break on their own", () => {
+  const measure = (t) => t.length * 10;
+  const doc = fromText("aaa     bbb");
+  const { lines } = layout(doc, { measure, maxWidth: 75, fontSize: 20, lineHeight: 1.25 });
+  // the spaces hang; the ink is "aaa" + "bbb" = 60
+  assert.equal(lines.length, 1);
+});

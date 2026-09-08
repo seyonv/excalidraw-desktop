@@ -67,9 +67,19 @@ export function layout(doc, opts) {
       }
 
       for (const word of words(text)) {
-        const width = measure(word);
-        if (x + width > available && fragments.length) flush();
-        if (width <= available) { place(run, word, width); continue; }
+        const core = word.trimEnd();
+        // Only the ink decides the break. A trailing space at a line break is
+        // hung, not drawn — the overlay is a browser and wraps that way, so
+        // charging the space here made a committed block wrap a word earlier
+        // than the editor showed and gain a line on click-away. A browser
+        // also collapses a run of trailing whitespace to a single space when
+        // it is *not* hung, so a raw multi-space run must not be measured
+        // character by character either — that would charge width the
+        // overlay never renders.
+        const ink = measure(core);
+        const width = core.length < word.length ? measure(core + " ") : ink;
+        if (x + ink > available && fragments.length) flush();
+        if (ink <= available) { place(run, word, width); continue; }
         // A single word wider than a whole line has no whitespace to break on,
         // so break it per character the way Excalidraw does. Without this an
         // over-wide word — or an over-wide boxed run falling through from above

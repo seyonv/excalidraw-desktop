@@ -166,7 +166,7 @@ reset
 js "window.__selectRich()" >/dev/null
 LINES_BEFORE="$(js 'window.__lineCount()')"
 FONT_BEFORE="$(js 'window.__fontSize()')"
-check "the drag is claimed" "true" "$(js 'String(window.__dragEdge("e", -160))')"
+check "the drag is claimed" "true" "$(js 'String(window.__dragEdge("e", -180))')"
 sleep 1
 check "it wrapped to more lines" "true" \
   "$(js "String(window.__lineCount() > $LINES_BEFORE)")"
@@ -249,6 +249,16 @@ open_editor
 check "a re-wrapped block still opens" "true" "$(js 'window.__overlayOpen()')"
 check "it opens at the re-wrapped width" "true" \
   "$(js 'String(window.__overlayText().includes("Ship on Tuesday"))')"
+
+# ---------- 7g. the editor's wrapping and the canvas's agree ----------
+# Clicking away must not reflow the block. It used to gain a line: the layout
+# charged each word's trailing space to the line, where a browser hangs it.
+reset
+open_editor
+OVERLAY_LINES="$(js 'window.__overlayLineCount()')"
+$B press "Escape" >/dev/null
+sleep 1
+check "the canvas wraps exactly as the editor did" "$OVERLAY_LINES" "$(js 'window.__lineCount()')"
 
 # ---------- 8. the quit-and-reopen path, through the real file format ----------
 # serializeScene + parseScene are the exact pair the app writes and reads files
