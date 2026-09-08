@@ -50,12 +50,11 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
       });
       const next = toElements(drag.doc, laidOut, base);
       const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
+      // updateScene merges partial appState through setState, so the rest of
+      // the current appState doesn't need spreading back in here.
       api.updateScene({
         elements: [...rest, ...next],
-        appState: {
-          ...api.getAppState(),
-          selectedElementIds: Object.fromEntries(next.map((el) => [el.id, true])),
-        },
+        appState: { selectedElementIds: Object.fromEntries(next.map((el) => [el.id, true])) },
         captureUpdate: capture,
       });
       drag.ids = new Set(next.map((el) => el.id));
@@ -67,6 +66,28 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
       window.removeEventListener("pointercancel", onPointerCancel, true);
       window.removeEventListener("keydown", onKeyDown, true);
       drag = null;
+    };
+
+    /** Put back exactly what the drag hid, reselect it, and leave no trace in
+     *  history. Shared by Escape and a cancelled pointer stream: both are an
+     *  aborted gesture, not a completed one, and the intermediate geometry
+     *  must not be left sitting in the scene — the undo baseline is still the
+     *  pre-drag state (every frame so far was EVENTUALLY, not IMMEDIATELY), so
+     *  leaving it there would let the next unrelated IMMEDIATELY anywhere in
+     *  the app fold it into that step's undo delta. */
+    const cancel = () => {
+      const api = apiRef.current;
+      if (api) {
+        const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
+        api.updateScene({
+          elements: [...rest, ...drag.hidden],
+          appState: {
+            selectedElementIds: Object.fromEntries(drag.hidden.map((el) => [el.id, true])),
+          },
+          captureUpdate: CaptureUpdateAction.EVENTUALLY,
+        });
+      }
+      finish();
     };
 
     const onPointerMove = (event) => {
@@ -114,27 +135,19 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
     };
 
     const onPointerCancel = () => {
-      finish();
+      if (!drag) return;
+      cancel();
     };
 
     const onKeyDown = (event) => {
       if (!drag || event.key !== "Escape") return;
-      // Excalidraw's own Escape handler deselects; stop it from also seeing
-      // this one, or the restored block loses its selection.
+      // Two separate things keep the restored block selected and usable:
+      // stopPropagation here keeps Excalidraw's own Escape handler — which
+      // deselects — from also seeing this event, and cancel() below is what
+      // re-points the selection at the restored elements' ids (the last
+      // render's ids, which cancel() replaces, no longer exist).
       event.stopPropagation();
-      const api = apiRef.current;
-      if (api) {
-        const rest = api.getSceneElements().filter((el) => !drag.ids.has(el.id));
-        // EVENTUALLY, not NEVER: every frame so far was itself deferred, so the
-        // undo baseline is still the pre-drag state. Restoring the hidden
-        // elements this way keeps it that way — no history entry, and nothing
-        // to undo past, exactly as if the drag had never happened.
-        api.updateScene({
-          elements: [...rest, ...drag.hidden],
-          captureUpdate: CaptureUpdateAction.EVENTUALLY,
-        });
-      }
-      finish();
+      cancel();
     };
 
     const onPointerDown = (event) => {

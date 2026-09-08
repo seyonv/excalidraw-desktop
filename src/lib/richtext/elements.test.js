@@ -157,3 +157,9 @@ test("blockIdFor keeps an original's id", () => {
 test("blockIdFor gives a copy its own id, keyed off the regenerated group", () => {
   assert.equal(blockIdFor("dupg-xyz", "rt1"), "rt-dupg-xyz");
 });
+
+test("blockIdFor falls back to the richTextId when there is no group yet", () => {
+  // useRichTextEditing.baseForPlain converts a plain element before it has a
+  // group id — a freshly-converted block still needs an identity.
+  assert.equal(blockIdFor(undefined, "rt-x"), "rt-x");
+});

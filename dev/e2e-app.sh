@@ -238,6 +238,7 @@ check "escape restores the pre-drag origin" "$X_BEFORE" \
 check "escape restores the pre-drag width" "$W_BEFORE" \
   "$(js '(b=>String(b.maxWidth))(JSON.parse(window.__blockBase()))')"
 check "escape restores the pre-drag wrap" "$LINES_BEFORE" "$(js 'window.__lineCount()')"
+check "escape leaves the block selected" "true" "$(js 'String(window.__blockSelected())')"
 
 # a re-wrapped block still opens for editing, at the new width
 reset

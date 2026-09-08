@@ -149,6 +149,14 @@
     return JSON.stringify({ x, y, maxWidth, fontSize, right: x + maxWidth });
   };
 
+  /** True when the selection is exactly the block's own elements. */
+  window.__blockSelected = () => {
+    const ids = new Set(rich().map((el) => el.id));
+    const selected = Object.keys(api.getAppState().selectedElementIds)
+      .filter((id) => api.getSceneElements().some((el) => el.id === id));
+    return selected.length === ids.size && selected.every((id) => ids.has(id));
+  };
+
   /** Excalidraw's own duplicate (element/duplicate.ts `duplicateElement`): deep
    *  copy, fresh element id, fresh group ids, everything else — customData
    *  included — carried over verbatim, offset like alt-drag or Cmd+D. Done here
