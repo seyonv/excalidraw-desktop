@@ -34,7 +34,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 | **Works offline**                | Needs the page loaded        | Fully native, no network at all                      |
 | **Opening a `.excalidraw` file** | Drag into the browser        | Double-click it in Finder / Explorer                 |
 | **Styling text**                 | One colour per text block    | Many styles inside one block — colour, highlight, underline, box, breakout |
-| **Resizing a text block**        | Drag scales the type with the box | Drag a side border to re-wrap at the same size; corners still scale |
+| **Resizing a text block**        | Drag scales the type with the box (it's a group of elements) | Drag a side border to re-wrap at the same size; corners still scale |
 | **Driving it from an AI agent**  | Not possible                 | MCP server — Claude Code can draw and edit on the canvas |
 
 ### The sidebar

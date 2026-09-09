@@ -141,6 +141,19 @@ test("readTransform reports nothing for elements that never carried an offset", 
   assert.equal(readTransform([{ x: 1, y: 2, customData: { richTextId: "rt1" } }]), null);
 });
 
+test("readTransform falls back to unit scale for a block stamped before offset carried w", () => {
+  // real blocks in the library today predate `w` on richTextOffset — they
+  // still know where they are (dx/dy), just not how much they were scaled
+  const el = {
+    x: 130,
+    y: 38,
+    type: "text",
+    width: 40,
+    customData: { richTextId: "rt1", richTextOffset: { dx: 30, dy: -12 } },
+  };
+  assert.deepEqual(readTransform([el]), { x: 100, y: 50, scale: 1 });
+});
+
 test("laying the same doc out narrower wraps more without changing the font", () => {
   const doc = fromText("aaa bbb ccc ddd");
   const wide = toElements(doc, layout(doc, opts), base);

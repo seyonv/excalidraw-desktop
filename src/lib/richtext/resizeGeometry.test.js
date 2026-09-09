@@ -19,8 +19,11 @@ test("ignores the top and bottom borders", () => {
   assert.equal(edgeAt(bounds, { x: 200, y: 152 }, 1), null);
 });
 
-test("leaves the corner handles to Excalidraw", () => {
-  // the nw handle occupies x[90,98] y[40,48] at zoom 1 — diagonally outside
+test("declines points outside the y-bounds, where the corner handles sit", () => {
+  // A corner handle is diagonally outside both bounds, so these fall through
+  // edgeAt's own `point.y < y1` / `point.y > y2` guard before x is ever
+  // tested — there is no separate corner-specific branch to exercise. The nw
+  // handle occupies x[90,98] y[40,48] at zoom 1; the se handle the mirror.
   assert.equal(edgeAt(bounds, { x: 94, y: 44 }, 1), null);
   assert.equal(edgeAt(bounds, { x: 306, y: 156 }, 1), null);
 });
@@ -32,6 +35,11 @@ test("claims the bound rows, which the n/s bands stop just short of", () => {
   assert.equal(edgeAt(bounds, { x: 302, y: 150 }, 1), "e");
   // a row above the top bound is the n band's, and it is tested before w
   assert.equal(edgeAt(bounds, { x: 98, y: 49 }, 1), null);
+  // below the bottom bound, Excalidraw's own e segment spans the full extended
+  // height and would still read this as an e grab (distance 2 < 4) — edgeAt's
+  // own `point.y > y2` guard declines it anyway, deliberately falling through
+  // to Excalidraw's ordinary scaling rather than claiming a drag this far past
+  // the block as a re-wrap
   assert.equal(edgeAt(bounds, { x: 302, y: 151 }, 1), null);
 });
 

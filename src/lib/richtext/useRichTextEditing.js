@@ -118,9 +118,14 @@ export function useRichTextEditing({ apiRef, containerRef }) {
     editingRef.current = null;
     const api = apiRef.current;
     if (api) {
+      // EVENTUALLY defers this restore into the next IMMEDIATELY rather than
+      // excluding it from history: NEVER instead advances the undo baseline
+      // to include the restore, making that z-order change un-undoable, and
+      // it would also swallow any EVENTUALLY still pending from before the
+      // edit opened.
       api.updateScene({
         elements: [...api.getSceneElements(), ...current.hidden],
-        captureUpdate: CaptureUpdateAction.NEVER,
+        captureUpdate: CaptureUpdateAction.EVENTUALLY,
       });
     }
     setEditing(null);

@@ -76,6 +76,10 @@ function App() {
   /** Writes the live scene to disk if it has unsaved changes. */
   const flush = useCallback(async () => {
     clearTimeout(timerRef.current);
+    // The scene is missing the block currently being edited — writing it
+    // would lose that block. Leave dirtyRef alone: the commit re-marks the
+    // drawing dirty, so the finished edit still saves.
+    if (isEditingRef.current) return;
     const name = activeNameRef.current;
     if (!dirtyRef.current || !name || !apiRef.current) return;
     const api = apiRef.current;
@@ -96,7 +100,7 @@ function App() {
       dirtyRef.current = true;
       setError(String(e));
     }
-  }, []);
+  }, [isEditingRef]);
 
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -274,7 +278,12 @@ function App() {
     if (elements.length > 0) sceneSettledRef.current = true;
     // While editing, the scene is missing the block being edited. Saving that
     // would write a file without it, and quitting mid-edit would lose it.
-    if (isEditingRef.current) return;
+    // Cancel any save armed before the edit opened too, or it would still
+    // fire mid-edit and write the scene without the block.
+    if (isEditingRef.current) {
+      clearTimeout(timerRef.current);
+      return;
+    }
     dirtyRef.current = true;
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS);

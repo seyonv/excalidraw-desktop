@@ -122,16 +122,21 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
 
     const onPointerUp = () => {
       if (!drag) return;
-      if (drag.moved) {
-        // One undo step for the whole drag: every intermediate frame was
-        // EVENTUALLY — deferred, not discarded — and this IMMEDIATELY folds
-        // all of them into one delta from the pre-drag baseline.
-        render(drag.base, CaptureUpdateAction.IMMEDIATELY);
+      try {
+        if (drag.moved) {
+          // One undo step for the whole drag: every intermediate frame was
+          // EVENTUALLY — deferred, not discarded — and this IMMEDIATELY folds
+          // all of them into one delta from the pre-drag baseline.
+          render(drag.base, CaptureUpdateAction.IMMEDIATELY);
+        }
+        // No pointermove landed: a stray click on the border. Rendering anyway
+        // would regenerate every element with fresh ids and seeds for no visible
+        // change — an undo step and a full file rewrite with nothing to show.
+        finish();
+      } catch (e) {
+        finish();
+        throw e;
       }
-      // No pointermove landed: a stray click on the border. Rendering anyway
-      // would regenerate every element with fresh ids and seeds for no visible
-      // change — an undo step and a full file rewrite with nothing to show.
-      finish();
     };
 
     const onPointerCancel = () => {
@@ -153,6 +158,10 @@ export function useRichTextResize({ apiRef, containerRef, isEditingRef }) {
     const onPointerDown = (event) => {
       const api = apiRef.current;
       if (!api || drag || isEditingRef?.current) return;
+      // The container wraps the whole editor, toolbar and islands included, so
+      // a press on Excalidraw's own UI reaches this handler too. Claiming one
+      // would swallow the click and arm a drag on the user's text.
+      if (!event.target?.closest?.("canvas.interactive")) return;
       // Shift is the scale gesture; Excalidraw already does it.
       if (event.shiftKey || event.button !== 0) return;
 

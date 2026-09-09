@@ -170,11 +170,15 @@ to pin behaviour we are deliberately *not* changing:
 - Dragging past the minimum stops at `fontSize * 4` instead of collapsing.
 - A shift-drag on an edge still scales: `fontSize` changes, and the drag is not
   claimed by us.
-- Undo after an edge drag restores the previous wrap in one step.
 - Scaling a block and then editing it keeps the scaled size — the reopened
   overlay's font size matches the scaled elements, and committing does not snap
   the block back.
 - A block that was scaled *and* moved reopens at the right place.
+
+**Verified by hand** (not covered by the E2E suite — undo needs keyboard
+handling the headless harness cannot drive):
+
+- Undo after an edge drag restores the previous wrap in one step.
 
 Excalidraw's own resize cannot be driven from the headless harness (its shortcut
 and pointer paths need canvas focus the harness never gets, and
