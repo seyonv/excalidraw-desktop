@@ -39,7 +39,7 @@ Everything below is new. The drawing experience itself is stock Excalidraw — s
 
 ### The sidebar
 
-- **Browse** every drawing, most recently edited first
+- **Browse** every drawing, sorted by name so the list holds still as you switch between them. A button in the sidebar header switches to most-recently-edited-first, and the choice is remembered.
 - **Switch** between them with a single click — the current one saves first, always
 - **Create** a new drawing with `+ New drawing`
 - **Rename** by double-clicking a name, or `⋯ → Rename`

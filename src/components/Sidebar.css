@@ -46,8 +46,35 @@
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
   padding: 14px 10px 10px 14px;
+}
+
+.sidebar-title {
+  flex: 1;
+}
+
+.sort-button {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.sort-button.on {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .sidebar-title {
@@ -157,9 +184,8 @@
   color: inherit;
   font: inherit;
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 

@@ -2,6 +2,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./Sidebar.css";
 
 const REORDER_MS = 220;
+const SORT_KEY = "excalidraw:sidebarSort";
+
+// The list holds still by default: alphabetical order never changes under
+// the cursor, whereas recency reorders every time a drawing is left. Recency
+// is a click away for finding what was worked on last.
+const sortDrawings = (drawings, sort) =>
+  [...drawings].sort((a, b) =>
+    sort === "recent"
+      ? b.modified - a.modified || a.name.localeCompare(b.name)
+      : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
 
 /**
  * FLIP's second half: pin the element to the state it is animating *from*,
@@ -39,6 +50,9 @@ function Sidebar({
   const [draft, setDraft] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [menuFor, setMenuFor] = useState(null);
+  const [sort, setSort] = useState(
+    () => (localStorage.getItem(SORT_KEY) === "recent" ? "recent" : "name"),
+  );
   const inputRef = useRef(null);
   const rowRefs = useRef(new Map());
   const rowPositions = useRef(new Map());
@@ -82,7 +96,7 @@ function Sidebar({
     }
 
     rowPositions.current = nextPositions;
-  }, [drawings]);
+  }, [drawings, sort]);
 
   // Any click outside a row's menu closes it.
   useEffect(() => {
@@ -91,6 +105,14 @@ function Sidebar({
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, [menuFor]);
+
+  const toggleSort = () => {
+    const next = sort === "recent" ? "name" : "recent";
+    localStorage.setItem(SORT_KEY, next);
+    setSort(next);
+  };
+
+  const sorted = sortDrawings(drawings, sort);
 
   const rowRef = (name) => (el) => {
     if (el) rowRefs.current.set(name, el);
@@ -128,6 +150,19 @@ function Sidebar({
       <header className="sidebar-header">
         <span className="sidebar-title">Drawings</span>
         <button
+          className={`sort-button${sort === "recent" ? " on" : ""}`}
+          onClick={toggleSort}
+          title={
+            sort === "recent"
+              ? "Sorted by last modified — click to sort by name"
+              : "Sorted by name — click to sort by last modified"
+          }
+          aria-label="Toggle sort order"
+          aria-pressed={sort === "recent"}
+        >
+          {sort === "recent" ? "Recent" : "A–Z"}
+        </button>
+        <button
           className="icon-button"
           onClick={onToggle}
           title="Hide sidebar"
@@ -142,7 +177,7 @@ function Sidebar({
       </button>
 
       <ul className="drawing-list">
-        {drawings.map((drawing) => {
+        {sorted.map((drawing) => {
           const isActive = drawing.name === activeName;
 
           if (renaming === drawing.name) {
