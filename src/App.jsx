@@ -9,7 +9,8 @@ import { useRichTextResize } from "./lib/richtext/useRichTextResize";
 import {
   createDrawing,
   deleteDrawing,
-  getPendingFile,
+  importPendingFiles,
+  onFilesOpened,
   listDrawings,
   onLibraryChanged,
   onOpenRequest,
@@ -49,6 +50,7 @@ function App() {
   const dirtyRef = useRef(false);
   const timerRef = useRef(null);
   const bootstrappedRef = useRef(false);
+  const bootstrapRef = useRef(null);
   // The exact bytes we last wrote per drawing. A watcher event whose contents
   // match one of these is our own autosave echoing back — dropping it is what
   // stops write → watch → reload → change → write from looping forever.
@@ -130,7 +132,7 @@ function App() {
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
 
-    (async () => {
+    bootstrapRef.current = (async () => {
       let list = await listDrawings();
 
       if (!localStorage.getItem(MIGRATED_KEY)) {
@@ -154,12 +156,8 @@ function App() {
         localStorage.setItem(MIGRATED_KEY, "1");
       }
 
-      const pending = await getPendingFile();
-      let target = null;
-      if (pending) {
-        target = await createDrawing(pending.name, pending.contents);
-        list = await listDrawings();
-      }
+      let target = await importPendingFiles();
+      if (target) list = await listDrawings();
 
       // An MCP open request that arrived while the app was not running.
       if (!target) {
@@ -258,6 +256,28 @@ function App() {
       try {
         openScene(name, await readDrawing(name));
         await refreshList();
+      } catch (e) {
+        setError(String(e));
+      }
+    });
+    return () => {
+      unlisten.then((off) => off()).catch(() => {});
+    };
+  }, [openScene, refreshList]);
+
+  // The OS handed us a file — Finder double-click, "Open With", `open -a`.
+  useEffect(() => {
+    const unlisten = onFilesOpened(async () => {
+      // A file that arrives mid-bootstrap would be opened and then replaced
+      // by the last-active drawing bootstrap is about to open.
+      await bootstrapRef.current;
+      try {
+        const name = await importPendingFiles();
+        if (!name) return;
+        await refreshList();
+        if (name === activeNameRef.current) return;
+        await flushRef.current();
+        openScene(name, await readDrawing(name));
       } catch (e) {
         setError(String(e));
       }

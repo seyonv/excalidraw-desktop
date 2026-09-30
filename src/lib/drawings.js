@@ -23,7 +23,22 @@ export const renameDrawing = (oldName, newName) =>
 
 export const deleteDrawing = (name) => invoke("delete_drawing", { name });
 
-export const getPendingFile = () => invoke("get_pending_file");
+/** Drawings the OS asked the app to open, each handed over exactly once. */
+export const takePendingFiles = () => invoke("take_pending_files");
+
+/** Brings files opened from outside the app into the library and returns the
+ *  name of the last one, or null if nothing was waiting. */
+export async function importPendingFiles() {
+  let last = null;
+  for (const file of await takePendingFiles()) {
+    // No contents means the file is already a library drawing.
+    last =
+      file.contents == null
+        ? file.name
+        : await createDrawing(file.name, file.contents);
+  }
+  return last;
+}
 
 export const takeOpenRequest = () => invoke("take_open_request");
 
@@ -34,6 +49,9 @@ export const onLibraryChanged = (handler) =>
 /** Fires when something outside the app asks for a drawing to be opened. */
 export const onOpenRequest = (handler) =>
   listen("open-request", (event) => handler(event.payload?.name));
+
+/** Fires when the OS hands the running app a file to open. */
+export const onFilesOpened = (handler) => listen("files-opened", handler);
 
 /** Serializes a live Excalidraw scene into the standard export format. */
 export function serializeScene(elements, appState, files) {

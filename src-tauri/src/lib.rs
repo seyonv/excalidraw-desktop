@@ -40,14 +40,16 @@ const HISTORY_KEEP: usize = 20;
 const OPEN_REQUEST_MAX_AGE: Duration = Duration::from_secs(30 * 60);
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(150);
 
-/// A `.excalidraw` passed on the command line (file association), consumed once
-/// by the frontend on startup.
-struct PendingFile(Mutex<Option<PendingOpen>>);
+/// `.excalidraw` files the OS asked us to open (file association), waiting for
+/// the frontend to take them.
+struct PendingFiles(Mutex<Vec<PendingOpen>>);
 
+/// `contents` is `None` for a file that already lives in the library: it is
+/// opened by name rather than copied in as a duplicate of itself.
 #[derive(Clone, Serialize)]
 struct PendingOpen {
     name: String,
-    contents: String,
+    contents: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -377,9 +379,44 @@ fn delete_drawing(name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_pending_file(state: tauri::State<'_, PendingFile>) -> Result<Option<PendingOpen>, String> {
+fn take_pending_files(state: tauri::State<'_, PendingFiles>) -> Result<Vec<PendingOpen>, String> {
     let mut data = state.0.lock().map_err(|e| e.to_string())?;
-    Ok(data.take())
+    Ok(std::mem::take(&mut *data))
+}
+
+/// What opening `path` from outside the app should do, or `None` if it is not
+/// a readable drawing.
+fn pending_open(path: &Path, library: &Path) -> Option<PendingOpen> {
+    if path.extension().and_then(|e| e.to_str()) != Some(EXT) {
+        return None;
+    }
+    let name = path.file_stem()?.to_str()?.to_string();
+    let in_library = path
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .is_some_and(|p| library.canonicalize().is_ok_and(|l| l == p));
+    let contents = if in_library {
+        None
+    } else {
+        Some(fs::read_to_string(path).ok()?)
+    };
+    Some(PendingOpen { name, contents })
+}
+
+/// Queues drawings the OS asked us to open and tells the frontend they are
+/// waiting. Queued as well as emitted because on a cold launch the request can
+/// arrive before the frontend is listening; bootstrap takes the queue instead.
+fn queue_files(app: &tauri::AppHandle, paths: impl IntoIterator<Item = PathBuf>) {
+    let Ok(library) = library_dir() else { return };
+    let opened: Vec<PendingOpen> = paths
+        .into_iter()
+        .filter_map(|p| pending_open(&p, &library))
+        .collect();
+    if opened.is_empty() {
+        return;
+    }
+    app.state::<PendingFiles>().0.lock().unwrap().extend(opened);
+    let _ = app.emit("files-opened", ());
 }
 
 /// Maps raw watcher paths to the drawing names the frontend cares about,
@@ -481,12 +518,13 @@ fn take_open_request() -> Result<Option<String>, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(PendingFile(Mutex::new(None)))
+        .manage(PendingFiles(Mutex::new(Vec::new())))
         // Must be the first plugin registered. A second launch (e.g. the MCP
         // server's `open -a`, or a second `tauri dev`) would otherwise start
         // its own window onto the same library directory — two windows then
         // autosave the same files independently and clobber each other.
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            queue_files(app, argv.into_iter().skip(1).map(PathBuf::from));
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
@@ -494,23 +532,14 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let args: Vec<String> = std::env::args().collect();
-            if let Some(file_path) = args.iter().find(|a| a.ends_with(".excalidraw")) {
-                if let Ok(contents) = std::fs::read_to_string(file_path) {
-                    let name = Path::new(file_path)
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("Imported drawing")
-                        .to_string();
-                    let state = app.state::<PendingFile>();
-                    *state.0.lock().unwrap() = Some(PendingOpen { name, contents });
-                }
-            }
+            // Windows and Linux pass an opened file as an argument. macOS
+            // does not — it arrives as `RunEvent::Opened`, handled below.
+            queue_files(app.handle(), std::env::args().skip(1).map(PathBuf::from));
             spawn_watcher(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_pending_file,
+            take_pending_files,
             take_open_request,
             list_drawings,
             read_drawing,
@@ -519,8 +548,17 @@ pub fn run() {
             rename_drawing,
             delete_drawing
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|_app, _event| {
+            // Finder's double-click, "Open With" and `open -a` all deliver the
+            // file as an Apple Event, never in argv — whether or not the app
+            // was already running.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                queue_files(_app, urls.iter().filter_map(|u| u.to_file_path().ok()));
+            }
+        });
 }
 
 #[cfg(test)]
@@ -791,6 +829,32 @@ mod tests {
 
         std::env::remove_var("EXCALIDRAW_LIBRARY_DIR");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pending_open_copies_outside_files_and_names_library_ones() {
+        let root = std::env::temp_dir().join(format!("excalidraw-open-{}", std::process::id()));
+        let library = root.join("library");
+        let elsewhere = root.join("elsewhere");
+        fs::create_dir_all(&library).unwrap();
+        fs::create_dir_all(&elsewhere).unwrap();
+        fs::write(library.join("mine.excalidraw"), "{}").unwrap();
+        fs::write(elsewhere.join("factory.excalidraw"), "{\"a\":1}").unwrap();
+        fs::write(elsewhere.join("notes.txt"), "hi").unwrap();
+
+        let outside = pending_open(&elsewhere.join("factory.excalidraw"), &library).unwrap();
+        assert_eq!(outside.name, "factory");
+        assert_eq!(outside.contents.as_deref(), Some("{\"a\":1}"));
+
+        // Already in the library: open it by name, never copy it onto itself.
+        let inside = pending_open(&library.join("mine.excalidraw"), &library).unwrap();
+        assert_eq!(inside.name, "mine");
+        assert!(inside.contents.is_none());
+
+        assert!(pending_open(&elsewhere.join("notes.txt"), &library).is_none());
+        assert!(pending_open(&elsewhere.join("missing.excalidraw"), &library).is_none());
+
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

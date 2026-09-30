@@ -181,7 +181,7 @@ Download the latest build for your platform from [Releases](../../releases).
 | Windows  | `.msi` or `.exe`                  |
 | Linux    | `.AppImage`, `.deb`, or `.tar.gz` |
 
-After installing, `.excalidraw` files are associated with the app — double-click any of them to open it. Files opened this way are copied into your library so they show up in the sidebar.
+After installing, `.excalidraw` files are associated with the app — double-click any of them to open it. Files opened this way are copied into your library so they show up in the sidebar. This works whether or not the app is already running, and also via **Open With** or `open some.excalidraw` in a terminal. The original file is left untouched — edits go to the library copy. Opening a file that is already in the library just switches to it.
 
 ## Development
 

@@ -33,10 +33,20 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["excalidraw"],
+        "ext": [
+          "excalidraw"
+        ],
         "name": "Excalidraw Drawing",
         "description": "Excalidraw Drawing File",
-        "mimeType": "application/json"
+        "contentTypes": [
+          "com.excalidraw.desktop.drawing"
+        ],
+        "exportedType": {
+          "identifier": "com.excalidraw.desktop.drawing",
+          "conformsTo": [
+            "public.json"
+          ]
+        }
       }
     ]
   }
