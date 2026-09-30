@@ -183,6 +183,8 @@ Download the latest build for your platform from [Releases](../../releases).
 
 After installing, `.excalidraw` files are associated with the app — double-click any of them to open it. Files opened this way are copied into your library so they show up in the sidebar. This works whether or not the app is already running, and also via **Open With** or `open some.excalidraw` in a terminal. The original file is left untouched — edits go to the library copy. Opening a file that is already in the library just switches to it.
 
+From inside the app, **File → Open…** (`⌘O` / `Ctrl+O`, also at the top of the canvas menu) picks one or more `.excalidraw` files and brings them in the same way.
+
 ## Development
 
 Requires [Node.js](https://nodejs.org) and the [Rust toolchain](https://rustup.rs).

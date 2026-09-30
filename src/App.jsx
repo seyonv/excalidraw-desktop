@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -11,6 +11,7 @@ import {
   deleteDrawing,
   importPendingFiles,
   onFilesOpened,
+  pickDrawings,
   listDrawings,
   onLibraryChanged,
   onOpenRequest,
@@ -419,7 +420,29 @@ function App() {
             }}
             initialData={scene}
             onChange={handleChange}
-          />
+          >
+            {/* Excalidraw's default menu, with its "Open" swapped for ours:
+                the stock one loads a file over the active drawing, where
+                autosave would then write it. */}
+            <MainMenu>
+              <MainMenu.Item onSelect={pickDrawings} shortcut="⌘O">
+                Open…
+              </MainMenu.Item>
+              <MainMenu.DefaultItems.SaveToActiveFile />
+              <MainMenu.DefaultItems.Export />
+              <MainMenu.DefaultItems.SaveAsImage />
+              <MainMenu.DefaultItems.SearchMenu />
+              <MainMenu.DefaultItems.Help />
+              <MainMenu.DefaultItems.ClearCanvas />
+              <MainMenu.Separator />
+              <MainMenu.Group title="Excalidraw links">
+                <MainMenu.DefaultItems.Socials />
+              </MainMenu.Group>
+              <MainMenu.Separator />
+              <MainMenu.DefaultItems.ToggleTheme />
+              <MainMenu.DefaultItems.ChangeCanvasBackground />
+            </MainMenu>
+          </Excalidraw>
         ) : (
           <div className="loading">
             <div className="loading-spinner"></div>

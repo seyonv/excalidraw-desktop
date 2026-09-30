@@ -26,6 +26,9 @@ export const deleteDrawing = (name) => invoke("delete_drawing", { name });
 /** Drawings the OS asked the app to open, each handed over exactly once. */
 export const takePendingFiles = () => invoke("take_pending_files");
 
+/** Shows the native file picker; anything chosen arrives via `onFilesOpened`. */
+export const pickDrawings = () => invoke("pick_drawings");
+
 /** Brings files opened from outside the app into the library and returns the
  *  name of the last one, or null if nothing was waiting. */
 export async function importPendingFiles() {

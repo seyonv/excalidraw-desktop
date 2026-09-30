@@ -8,11 +8,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
+use tauri::menu::{Menu, MenuItem, MenuItemKind, Submenu};
 use tauri::Emitter;
 use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
+const OPEN_MENU_ID: &str = "open-file";
 /// Where the version replaced by each write is kept. A subdirectory of the
 /// library, so a drawing and its history travel together if the folder moves.
 /// Deliberately not `*.excalidraw` inside: `list_drawings` and `drawing_names`
@@ -419,6 +422,41 @@ fn queue_files(app: &tauri::AppHandle, paths: impl IntoIterator<Item = PathBuf>)
     let _ = app.emit("files-opened", ());
 }
 
+/// Shows the native file picker and feeds whatever is chosen through the same
+/// queue as a file opened from Finder. Does not block: the picker reports back
+/// on its own.
+#[tauri::command]
+fn pick_drawings(app: tauri::AppHandle) {
+    let handle = app.clone();
+    app.dialog()
+        .file()
+        .add_filter("Excalidraw drawing", &[EXT])
+        .pick_files(move |files| {
+            let paths = files
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|f| f.into_path().ok());
+            queue_files(&handle, paths);
+        });
+}
+
+/// The default menu bar with `File → Open…` added. Its ⌘O also takes the
+/// shortcut away from Excalidraw's own "Open", which loads a file *over* the
+/// active drawing — and autosave would then write it there.
+fn app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let menu = Menu::default(app)?;
+    let open = MenuItem::with_id(app, OPEN_MENU_ID, "Open…", true, Some("CmdOrCtrl+O"))?;
+    let file = menu.items()?.into_iter().find_map(|item| match item {
+        MenuItemKind::Submenu(sub) if sub.text().is_ok_and(|t| t == "File") => Some(sub),
+        _ => None,
+    });
+    match file {
+        Some(file) => file.prepend(&open)?,
+        None => menu.append(&Submenu::with_items(app, "File", true, &[&open])?)?,
+    }
+    Ok(menu)
+}
+
 /// Maps raw watcher paths to the drawing names the frontend cares about,
 /// dropping control files, non-drawings, and duplicate events.
 fn drawing_names(paths: &[PathBuf]) -> Vec<String> {
@@ -531,6 +569,13 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .menu(app_menu)
+        .on_menu_event(|app, event| {
+            if event.id() == OPEN_MENU_ID {
+                pick_drawings(app.clone());
+            }
+        })
         .setup(|app| {
             // Windows and Linux pass an opened file as an argument. macOS
             // does not — it arrives as `RunEvent::Opened`, handled below.
@@ -540,6 +585,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             take_pending_files,
+            pick_drawings,
             take_open_request,
             list_drawings,
             read_drawing,
