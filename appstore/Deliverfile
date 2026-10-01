@@ -10,7 +10,6 @@ overwrite_screenshots true
 skip_binary_upload true
 run_precheck_before_submit false
 force true
-price_tier 0
 automatic_release true
 app_review_information(
   first_name: "Seyon",
@@ -18,7 +17,6 @@ app_review_information(
   email_address: "seyon.vasantharajan@gmail.com",
   phone_number: ENV.fetch("SKETCHSHELF_REVIEW_PHONE"),
   demo_user: "",
-  demo_password: "",
-  notes: File.read(File.join(__dir__, "metadata/review_information/notes.txt"))
+  demo_password: ""
 )
 submission_information({ add_id_info_uses_idfa: false })
