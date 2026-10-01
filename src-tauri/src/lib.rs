@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -10,8 +10,9 @@ use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, MenuItemKind, Submenu};
 use tauri::Emitter;
+use tauri::webview::DownloadEvent;
 use tauri::Manager;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
@@ -440,6 +441,63 @@ fn pick_drawings(app: tauri::AppHandle) {
         });
 }
 
+/// Excalidraw saves and exports (`Save to…`, `Export image`) as browser
+/// downloads, and the webview cancels every download nobody handles — those
+/// menu items silently did nothing. Each download now lands in a temp file and
+/// then goes wherever the user picks in a Save dialog, which is also what lets
+/// the sandboxed build write outside its container.
+fn download_handler() -> impl Fn(tauri::Webview, DownloadEvent<'_>) -> bool + Send + Sync + 'static {
+    // macOS reports a finished download without its path, so remember where
+    // each one was sent when it was requested.
+    let sent_to = Mutex::new(HashMap::<String, PathBuf>::new());
+    move |webview, event| {
+        match event {
+            DownloadEvent::Requested { url, destination } => {
+                let name = destination
+                    .file_name()
+                    .map(|n| n.to_owned())
+                    .unwrap_or_else(|| "Drawing".into());
+                *destination = std::env::temp_dir().join(name);
+                let _ = fs::remove_file(&*destination);
+                sent_to.lock().unwrap().insert(url.to_string(), destination.clone());
+            }
+            DownloadEvent::Finished { url, success, .. } => {
+                let Some(path) = sent_to.lock().unwrap().remove(&url.to_string()) else {
+                    return true;
+                };
+                if success {
+                    save_download(webview.app_handle().clone(), path);
+                } else {
+                    let _ = fs::remove_file(&path);
+                }
+            }
+            _ => {}
+        }
+        true
+    }
+}
+
+/// Asks where a finished download should go, and moves it there.
+fn save_download(app: tauri::AppHandle, path: PathBuf) {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let dialogs = app.clone();
+    app.dialog().file().set_file_name(name).save_file(move |target| {
+        if let Some(target) = target.and_then(|t| t.into_path().ok()) {
+            if let Err(e) = fs::copy(&path, &target) {
+                dialogs
+                    .dialog()
+                    .message(format!("Could not save {}: {e}", target.display()))
+                    .kind(MessageDialogKind::Error)
+                    .show(|_| {});
+            }
+        }
+        let _ = fs::remove_file(&path);
+    });
+}
+
 /// The default menu bar with `File → Open…` added. Its ⌘O also takes the
 /// shortcut away from Excalidraw's own "Open", which loads a file *over* the
 /// active drawing — and autosave would then write it there.
@@ -577,6 +635,12 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            // Built here rather than from the config so it can take a download
+            // handler; `create: false` in tauri.conf.json leaves this to us.
+            let main = app.config().app.windows[0].clone();
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &main)?
+                .on_download(download_handler())
+                .build()?;
             // Windows and Linux pass an opened file as an argument. macOS
             // does not — it arrives as `RunEvent::Opened`, handled below.
             queue_files(app.handle(), std::env::args().skip(1).map(PathBuf::from));

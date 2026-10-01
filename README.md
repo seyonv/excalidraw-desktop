@@ -185,6 +185,8 @@ After installing, `.excalidraw` files are associated with the app — double-cli
 
 From inside the app, **File → Open…** (`⌘O` / `Ctrl+O`, also at the top of the canvas menu) picks one or more `.excalidraw` files and brings them in the same way.
 
+Excalidraw's own **Save to…** and **Export image** (PNG, SVG) open a native Save dialog, so a copy can go anywhere on your Mac.
+
 ## Development
 
 Requires [Node.js](https://nodejs.org) and the [Rust toolchain](https://rustup.rs).
