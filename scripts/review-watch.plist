@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs scripts/review-watch.sh every six hours, through a small launcher
+     binary that holds Full Disk Access (the repo is under ~/Desktop). Install:
+       cp scripts/review-watch.plist ~/Library/LaunchAgents/dev.seyon.sketchshelf.review-watch.plist
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.seyon.sketchshelf.review-watch.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.seyon.sketchshelf.review-watch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/seyonvasantharajan/.appstoreconnect/bin/sketchshelf-review-watch</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>21600</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/seyonvasantharajan/Library/Logs/sketchshelf-review-watch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/seyonvasantharajan/Library/Logs/sketchshelf-review-watch.log</string>
+</dict>
+</plist>

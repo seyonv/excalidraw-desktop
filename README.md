@@ -215,6 +215,10 @@ it runs in the App Sandbox, so its library lives in
 The distribution build needs the Mac App Store provisioning profile at
 `src-tauri/Sketchshelf.provisionprofile` (not committed). Output lands in `dist-appstore/`.
 
+`scripts/review-watch.sh` follows an App Store review. launchd runs it every six hours
+(`scripts/review-watch.plist`). It only reads the review state until that changes, then
+hands over to a headless Claude Code run that fixes and resubmits, or announces the release.
+
 ### How it's put together
 
 ```
