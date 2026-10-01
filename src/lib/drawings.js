@@ -62,7 +62,7 @@ export function serializeScene(elements, appState, files) {
   return JSON.stringify({
     type: "excalidraw",
     version: 2,
-    source: "excalidraw-desktop",
+    source: "sketchshelf",
     elements: elements ?? [],
     appState: rest,
     files: files ?? {},

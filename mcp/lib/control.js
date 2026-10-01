@@ -15,7 +15,7 @@ const focusMode = () => process.env.EXCALIDRAW_MCP_FOCUS || "focus";
 // The release bundle that `npm run tauri build -- --bundles app` produces.
 // `open` launches it, or focuses it if it is already running.
 export const APP_BUNDLE = fileURLToPath(
-  new URL("../../src-tauri/target/release/bundle/macos/excalidraw-desktop.app", import.meta.url),
+  new URL("../../src-tauri/target/release/bundle/macos/Sketchshelf.app", import.meta.url),
 );
 
 export function launcher() {

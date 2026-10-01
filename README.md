@@ -1,10 +1,10 @@
 <div align="center">
 
-# Excalidraw Desktop
+# Sketchshelf
 
-**The Excalidraw you know, with a drawing library that lives on your disk.**
+**The Excalidraw editor you know, with a drawing library that lives on your disk.**
 
-A native desktop app for [Excalidraw](https://excalidraw.com) that adds what the web editor doesn't have: a real sidebar of all your drawings, saved as ordinary files you own.
+A native desktop app built on the open-source [Excalidraw](https://excalidraw.com) editor that adds what the web editor doesn't have: a real sidebar of all your drawings, saved as ordinary files you own.
 
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-6965db?style=flat-square)](#installation)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri-24C8DB?style=flat-square)](https://tauri.app)
@@ -24,7 +24,7 @@ This app keeps the canvas exactly as it is and adds the missing layer around it:
 
 Everything below is new. The drawing experience itself is stock Excalidraw — same tools, same shortcuts, same file format.
 
-|                                  | Excalidraw web               | Excalidraw Desktop                                   |
+|                                  | Excalidraw web               | Sketchshelf                                          |
 | -------------------------------- | ---------------------------- | ---------------------------------------------------- |
 | **Drawings open at once**        | One scene                    | A full library, switch in a click                    |
 | **Where work is stored**         | Browser localStorage         | Real `.excalidraw` files in `~/Library/Application Support/Excalidraw` |
@@ -168,7 +168,7 @@ in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude d
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `EXCALIDRAW_MCP_FOCUS` | `focus` | `focus` brings the app forward, `switch` changes the drawing without stealing focus, `off` writes files only |
-| `EXCALIDRAW_APP` | (built-in: `open`s the release bundle at `src-tauri/target/release/bundle/macos/excalidraw-desktop.app`) | Path to an executable to launch, invoked with no arguments — not a shell command string. Unset uses the built-in default shown here. |
+| `EXCALIDRAW_APP` | (built-in: `open`s the release bundle at `src-tauri/target/release/bundle/macos/Sketchshelf.app`) | Path to an executable to launch, invoked with no arguments — not a shell command string. Unset uses the built-in default shown here. |
 | `EXCALIDRAW_LIBRARY_DIR` | `~/Library/Application Support/Excalidraw` | Where drawings live |
 
 ## Installation
@@ -225,7 +225,7 @@ The frontend never touches the filesystem directly. Every path is re-resolved in
 
 ## Credits
 
-Built on [**Excalidraw**](https://github.com/excalidraw/excalidraw) by the Excalidraw team — the canvas, the tools, and the file format are all theirs, and this app bundles their editor under the MIT license. Packaged as a desktop app with [Tauri](https://tauri.app).
+Built on [**Excalidraw**](https://github.com/excalidraw/excalidraw) by the Excalidraw team — the canvas, the tools, and the file format are all theirs, and this app bundles their editor under the MIT license. Sketchshelf is an independent project and is not affiliated with or endorsed by Excalidraw. Packaged as a desktop app with [Tauri](https://tauri.app).
 
 ## License
 

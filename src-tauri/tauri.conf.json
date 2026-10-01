@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "excalidraw-desktop",
-  "version": "0.1.0",
-  "identifier": "com.excalidraw.desktop",
+  "productName": "Sketchshelf",
+  "version": "1.0.0",
+  "identifier": "dev.seyon.sketchshelf",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Excalidraw Desktop",
+        "title": "Sketchshelf",
         "width": 1000,
         "height": 700
       }
@@ -39,15 +39,16 @@
         "name": "Excalidraw Drawing",
         "description": "Excalidraw Drawing File",
         "contentTypes": [
-          "com.excalidraw.desktop.drawing"
+          "dev.seyon.sketchshelf.drawing"
         ],
         "exportedType": {
-          "identifier": "com.excalidraw.desktop.drawing",
+          "identifier": "dev.seyon.sketchshelf.drawing",
           "conformsTo": [
             "public.json"
           ]
         }
       }
-    ]
+    ],
+    "copyright": "\u00a9 2026 Seyon Vasantharajan"
   }
 }

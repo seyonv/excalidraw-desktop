@@ -350,7 +350,7 @@ fn write_drawing(name: String, contents: String, allow_empty: Option<bool>) -> R
 fn create_drawing(name: Option<String>, contents: Option<String>) -> Result<String, String> {
     let name = unique_name(name.as_deref().unwrap_or("Untitled"), None)?;
     let body = contents.unwrap_or_else(|| {
-        r#"{"type":"excalidraw","version":2,"source":"excalidraw-desktop","elements":[],"appState":{},"files":{}}"#
+        r#"{"type":"excalidraw","version":2,"source":"sketchshelf","elements":[],"appState":{},"files":{}}"#
             .to_string()
     });
     write_atomic(&path_for(&name)?, &body).map_err(|e| format!("could not create {name}: {e}"))?;
