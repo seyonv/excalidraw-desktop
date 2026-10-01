@@ -50,6 +50,9 @@
         }
       }
     ],
-    "copyright": "\u00a9 2026 Seyon Vasantharajan"
+    "copyright": "\u00a9 2026 Seyon Vasantharajan. Built on the open-source Excalidraw editor (MIT License); not affiliated with Excalidraw.",
+    "macOS": {
+      "bundleVersion": "2"
+    }
   }
 }

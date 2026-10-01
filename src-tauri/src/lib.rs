@@ -13,6 +13,7 @@ use tauri::Emitter;
 use tauri::webview::DownloadEvent;
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_opener::OpenerExt;
 
 const EXT: &str = "excalidraw";
 const OPEN_REQUEST_FILE: &str = ".open-request";
@@ -477,6 +478,22 @@ fn download_handler() -> impl Fn(tauri::Webview, DownloadEvent<'_>) -> bool + Se
     }
 }
 
+/// Excalidraw's own links (Help, GitHub, "Browse libraries") open in a new
+/// tab, and the webview drops every new-tab request nobody handles — those
+/// links did nothing. They now open in the default browser instead.
+fn open_in_browser(
+    app: tauri::AppHandle,
+) -> impl Fn(tauri::Url, tauri::webview::NewWindowFeatures) -> tauri::webview::NewWindowResponse<tauri::Wry>
+       + Send
+       + 'static {
+    move |url, _features| {
+        if matches!(url.scheme(), "http" | "https" | "mailto") {
+            let _ = app.opener().open_url(url.as_str(), None::<&str>);
+        }
+        tauri::webview::NewWindowResponse::Deny
+    }
+}
+
 /// Asks where a finished download should go, and moves it there.
 fn save_download(app: tauri::AppHandle, path: PathBuf) {
     let name = path
@@ -640,6 +657,7 @@ pub fn run() {
             let main = app.config().app.windows[0].clone();
             tauri::WebviewWindowBuilder::from_config(app.handle(), &main)?
                 .on_download(download_handler())
+                .on_new_window(open_in_browser(app.handle().clone()))
                 .build()?;
             // Windows and Linux pass an opened file as an argument. macOS
             // does not — it arrives as `RunEvent::Opened`, handled below.
