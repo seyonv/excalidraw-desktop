@@ -435,10 +435,6 @@ function App() {
               <MainMenu.DefaultItems.Help />
               <MainMenu.DefaultItems.ClearCanvas />
               <MainMenu.Separator />
-              <MainMenu.Group title="Excalidraw links">
-                <MainMenu.DefaultItems.Socials />
-              </MainMenu.Group>
-              <MainMenu.Separator />
               <MainMenu.DefaultItems.ToggleTheme />
               <MainMenu.DefaultItems.ChangeCanvasBackground />
             </MainMenu>
