@@ -1,0 +1,24 @@
+# fastlane deliver config for the Mac App Store listing.
+#   cd appstore && fastlane deliver --api_key_path ~/.appstoreconnect/sketchshelf.json
+# The review contact's phone number comes from SKETCHSHELF_REVIEW_PHONE so it
+# stays out of this public repo.
+app_identifier "dev.seyon.sketchshelf"
+platform "osx"
+metadata_path "./metadata"
+screenshots_path "./screenshots"
+overwrite_screenshots true
+skip_binary_upload true
+run_precheck_before_submit false
+force true
+price_tier 0
+automatic_release true
+app_review_information(
+  first_name: "Seyon",
+  last_name: "Vasantharajan",
+  email_address: "seyon.vasantharajan@gmail.com",
+  phone_number: ENV.fetch("SKETCHSHELF_REVIEW_PHONE"),
+  demo_user: "",
+  demo_password: "",
+  notes: File.read(File.join(__dir__, "metadata/review_information/notes.txt"))
+)
+submission_information({ add_id_info_uses_idfa: false })
