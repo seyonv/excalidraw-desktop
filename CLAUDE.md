@@ -152,6 +152,13 @@ starts formatting filenames, the seams have eroded.
   app rewrites the active drawing on every switch, so snapshotting every write
   would evict twenty real versions in an afternoon.
 
+- **The sandboxed build needs `com.apple.security.network.client`.** Without it
+  WebKit's network process crashes in a loop and the window stays blank, even
+  though the app never goes online. Keep it in both `.entitlements` files.
+- **Test the Store build with `scripts/appstore-build.sh --dev`.** A
+  distribution-signed app will not launch outside the Store, and the sandbox
+  only shows its effects in a signed, sandboxed build.
+
 ## Gotchas in this repo
 
 - A formatter hook reformats **every** file on each edit, including the vendored

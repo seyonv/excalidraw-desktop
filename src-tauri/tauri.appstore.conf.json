@@ -1,0 +1,7 @@
+{
+  "build": { "features": ["appstore"] },
+  "bundle": {
+    "category": "Productivity",
+    "macOS": { "minimumSystemVersion": "11.0" }
+  }
+}

@@ -200,6 +200,19 @@ npm run test:overlay   # drive the text editor in a real browser (needs `npm run
 npm run test:app       # drive it against a real Excalidraw canvas (needs `npm run dev`)
 ```
 
+### Mac App Store build
+
+```bash
+scripts/appstore-build.sh --dev   # sandboxed, signed for this Mac, runnable locally
+scripts/appstore-build.sh         # sandboxed, distribution-signed, wrapped in Sketchshelf.pkg
+```
+
+The Store build is the same app with `src-tauri/tauri.appstore.conf.json` merged in:
+it runs in the App Sandbox, so its library lives in
+`~/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw`.
+The distribution build needs the Mac App Store provisioning profile at
+`src-tauri/Sketchshelf.provisionprofile` (not committed). Output lands in `dist-appstore/`.
+
 ### How it's put together
 
 ```
