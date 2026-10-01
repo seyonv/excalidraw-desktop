@@ -1,0 +1,10 @@
+No account or sign-in is needed, and the app makes no network requests.
+
+Sketchshelf is a drawing library built on the open-source Excalidraw editor (MIT licensed). To try what it adds:
+1. Draw anything on the canvas. It saves automatically.
+2. Click "+ New drawing" in the sidebar, then click between the two drawings to switch.
+3. Double-click a drawing's name in the sidebar to rename it, or use the ⋯ menu to delete it.
+4. Select a text element, press ⌘B to colour it blue or ⌘H to highlight it.
+5. Use the ☰ menu → Export image to save a PNG through the system Save panel.
+
+The com.apple.security.network.client entitlement is needed only because WebKit's networking process will not start without it inside the sandbox. The app itself never connects to the network.

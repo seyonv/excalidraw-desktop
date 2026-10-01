@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Dev-only. Frames one raw capture as an App Store slide. Rendered at
+     1440×900 with --scale 2 by dev/screenshots/frame.sh, giving 2880×1800.
+     ?shot=<raw png>&title=<headline>&em=<word to underline>&sub=<subline> -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { width: 1440px; height: 900px; overflow: hidden; }
+      body {
+        background: radial-gradient(1200px 700px at 50% -10%, #3a4c85 0%, #2b3a67 45%, #1a2340 100%);
+        font-family: -apple-system, "SF Pro Display", system-ui, sans-serif;
+        color: #fff;
+        display: flex; flex-direction: column; align-items: center;
+      }
+      h1 {
+        margin-top: 64px; font-size: 64px; font-weight: 750; letter-spacing: -0.025em;
+        line-height: 1.05; text-align: center;
+      }
+      .em { position: relative; white-space: nowrap; }
+      .em svg { position: absolute; left: -2%; width: 104%; bottom: -14px; height: 22px; overflow: visible; }
+      p {
+        margin-top: 22px; font-size: 26px; font-weight: 450; color: #c9d3f2;
+        letter-spacing: -0.005em; text-align: center; max-width: 1000px;
+      }
+      .shot {
+        margin-top: 46px; width: 1180px; border-radius: 14px; overflow: hidden;
+        box-shadow: 0 40px 90px rgba(5, 10, 30, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      .shot img { display: block; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+    <div class="shot"><img id="img" /></div>
+    <script>
+      const q = new URLSearchParams(location.search);
+      const title = q.get("title"), em = q.get("em") || "";
+      const h1 = document.getElementById("title");
+      const at = em ? title.indexOf(em) : -1;
+      if (at < 0) h1.textContent = title;
+      else {
+        h1.append(title.slice(0, at));
+        const span = document.createElement("span");
+        span.className = "em";
+        span.textContent = em;
+        span.insertAdjacentHTML("beforeend",
+          '<svg viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M3 13 C 40 4, 80 18, 120 9 S 180 6, 197 10" fill="none" stroke="#ff7a59" stroke-width="6" stroke-linecap="round"/></svg>');
+        h1.append(span, title.slice(at + em.length));
+      }
+      document.getElementById("sub").textContent = q.get("sub");
+      document.getElementById("img").src = q.get("shot");
+    </script>
+  </body>
+</html>

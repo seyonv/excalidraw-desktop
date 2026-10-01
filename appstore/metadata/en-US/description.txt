@@ -1,0 +1,38 @@
+Sketchshelf keeps every hand-drawn diagram, sketch and whiteboard you make in one place, on your Mac.
+
+It is built on the open-source Excalidraw editor, so you get the same canvas, tools, shortcuts and hand-drawn look. What Sketchshelf adds is the part a single browser tab can't give you: a library.
+
+A SHELF FOR ALL YOUR DRAWINGS
+• Every drawing in a sidebar, sorted by name or by most recently edited
+• Switch between drawings in one click. The one you leave is saved first
+• Create, rename and delete right from the sidebar
+• Collapse the sidebar when you want the whole window for the canvas
+
+SAVED AS YOU DRAW
+• Your work is written to disk a moment after you stop drawing, and again whenever you switch away
+• No save button and no export step to remember
+• Every drawing is a standard .excalidraw file
+• Saves are atomic: if your Mac crashes mid-save, the previous version is still there
+
+EMPHASIS INSIDE ONE TEXT BLOCK
+• Colour a phrase blue, red, green or orange
+• Highlight it, underline it, or draw a box around it
+• Break a phrase out onto its own indented line
+• Drag the side of a text block to re-wrap it at the same font size
+
+WORKS WITH THE FILES YOU ALREADY HAVE
+• Double-click any .excalidraw file in Finder to add it to your library
+• Use File → Open to bring in several at once
+• Export any drawing as PNG or SVG, or save a copy anywhere on your Mac
+• Files stay in the standard format, so they still open in the Excalidraw web editor
+
+PRIVATE BY DESIGN
+• No account, no sign-in
+• No analytics, no tracking, no ads
+• Your drawings never leave your Mac
+
+And a full dark mode, sidebar included.
+
+—
+
+Sketchshelf is built on the open-source Excalidraw editor (MIT licensed) and opens and saves standard .excalidraw files. It is an independent project and is not affiliated with or endorsed by Excalidraw.

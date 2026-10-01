@@ -30,3 +30,4 @@ dist-ssr
 # Mac App Store build output and its (per-machine) provisioning profile
 dist-appstore/
 src-tauri/*.provisionprofile
+dev/screenshots/raw/
