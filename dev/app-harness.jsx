@@ -15,6 +15,9 @@ import { canvasMeasure } from "../src/lib/richtext/measure.js";
 import { toElements } from "../src/lib/richtext/elements.js";
 import { parseScene, serializeScene } from "../src/lib/drawings.js";
 
+// Fonts from public/, as App.jsx does, not Excalidraw's esm.sh fallback.
+window.EXCALIDRAW_ASSET_PATH = "/";
+
 const BASE = {
   x: 120, y: 120, id: "rt-fixture", maxWidth: 420, fontSize: 20, fontFamily: 5,
   lineHeight: 1.25, strokeColor: "#1e1e1e", groupId: "rtg-fixture",

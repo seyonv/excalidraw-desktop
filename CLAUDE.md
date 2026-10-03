@@ -155,6 +155,13 @@ starts formatting filenames, the seams have eroded.
 - **The sandboxed build needs `com.apple.security.network.client`.** Without it
   WebKit's network process crashes in a loop and the window stays blank, even
   though the app never goes online. Keep it in both `.entitlements` files.
+- **The CSP in `tauri.conf.json` is what makes "no network" true.** The
+  Excalidraw package can POST a library to a Google Cloud function (Library →
+  Publish) and load YouTube/Twitter/Reddit embeds, and the App Review notes and
+  privacy policy promise the app never connects. `connect-src`/`frame-src` keep
+  that promise; `'unsafe-eval'` is there for the font-subsetting wasm (embind
+  uses `new Function`), and `style-src` is excluded from Tauri's nonce injection
+  so inline styles keep working. Don't loosen it without updating both.
 - **Test the Store build with `scripts/appstore-build.sh --dev`.** A
   distribution-signed app will not launch outside the Store, and the sandbox
   only shows its effects in a signed, sandboxed build.
