@@ -1,0 +1,14 @@
+Guideline 2.1 - Information Needed - New App Submission
+
+This app has been submitted by a developer account that has a limited App Review history. We need additional information to better understand the app and complete the review.
+
+Reply in App Store Connect with all of the following information and also add this information to the Notes field of the App Review Information section in App Store Connect, for reference on future submissions:
+
+1. A screen recording captured on a physical device, running the latest operating system, demonstrating the app's functionality. The recording must begin with launching the app and show the typical user flow. If the app has any of the following, include them in the recording: account registration, login, and account deletion flows; any user-generated content, including the required content reporting and blocking mechanisms; accessing paid content or features within the app.
+2. A description of the app's purpose and target audience, including the problem it solves and the value it provides
+3. Instructions for setting up and accessing the app's main features, including any required login credentials or sample files
+4. A list of the external services, tools, or platforms the app uses to deliver its core functionality (for example, data providers, authentication services, payment processors, or AI services)
+5. Describe any regional differences in the app's features or content, or confirm that the app functions consistently across all regions
+6. If the app operates in a highly regulated industry or includes protected third-party material, provide any relevant documentation or credentials to demonstrate you are authorized to provide these services or protected material
+
+Prevent Common Issues: 2.1 bugs and crashes (test on physical devices, TestFlight); 2.1 demo account credentials; 2.3.3 screenshots must show the actual app in use; 3.1.1 IAP configured alongside; 3.2 business-specific apps use other distribution.
