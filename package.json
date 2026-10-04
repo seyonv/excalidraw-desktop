@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "posttauri": "scripts/install-local.sh",
     "test:mcp": "node --test 'mcp/**/*.test.js'",
     "test:richtext": "node --test 'src/lib/richtext/*.test.js'",
     "test:overlay": "./dev/e2e-overlay.sh",

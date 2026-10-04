@@ -181,6 +181,7 @@ starts formatting filenames, the seams have eroded.
 ```bash
 npm install
 npm run tauri dev             # run with hot reload
+npm run tauri build           # release build; also installs it to /Applications
 npm run build                 # frontend only
 cd src-tauri && cargo test    # library layer tests
 npm run test:mcp              # MCP server tests
