@@ -1,6 +1,6 @@
 Hello,
 
-The recording (sketchshelf-review.mp4) is attached. The answers below are also in the Review Notes. Build 3 adds only a strict Content-Security-Policy that blocks all network access.
+The recording (sketchshelf-review.mp4) is attached. The answers below are also in the Review Notes. Build 4 adds a strict Content-Security-Policy that blocks all network access, and fixes two bugs that could lose a drawing's latest changes.
 
 SUMMARY
 Sketchshelf is a free, offline Mac drawing app. It has no account or sign-in, no in-app purchases, no ads, no user-generated content sharing, and it makes no network requests. A screen recording of the full flow is attached to the Resolution Center reply for this version.

@@ -7,7 +7,7 @@ For a Mac app, a recording of a real Mac counts. Target length: 60–90 seconds.
 ## Before recording
 
 1. Quit Sketchshelf if it is running.
-2. Build the sandboxed copy of the build being submitted (build 3) and copy it
+2. Build the sandboxed copy of the build being submitted (build 4) and copy it
    to Applications, so the recording shows the same code Apple has:
    `scripts/appstore-build.sh --dev && cp -R dist-appstore/Sketchshelf.app /Applications/`
 3. Have one `.excalidraw` file on the Desktop for step 7. Copy one out of the
