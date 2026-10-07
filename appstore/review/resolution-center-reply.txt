@@ -6,7 +6,7 @@ SUMMARY
 Sketchshelf is a free, offline Mac drawing app. It has no account or sign-in, no in-app purchases, no ads, no user-generated content sharing, and it makes no network requests. A screen recording of the full flow is attached to the Resolution Center reply for this version.
 
 1. SCREEN RECORDING
-Recorded on a physical MacBook Air (M3) running macOS {{MACOS_VERSION}}, not a virtual machine, starting from launch in Finder. Tested on that Mac with the same build. It covers creating a drawing, drawing on it, autosave, switching drawings, rename, text emphasis, export to PNG, File → Open, dark mode, delete, and quit and relaunch. The app has no registration, login, account deletion, sharing, reporting or paid features, so none appear.
+Recorded on a physical MacBook Air (M3) running macOS 27.0.1, not a virtual machine, starting from launch in Finder. Tested on that Mac with the same build. It covers creating a drawing, drawing on it, autosave, switching drawings, rename, text emphasis, export to PNG, File → Open, dark mode, delete, and quit and relaunch. The app has no registration, login, account deletion, sharing, reporting or paid features, so none appear.
 
 2. PURPOSE AND AUDIENCE
 Sketchshelf is a library for hand-drawn diagrams, sketches and whiteboards. It is for people who sketch to think: developers drawing architecture, designers wireframing, students and writers mapping ideas. The open-source Excalidraw editor it is built on runs in a browser tab and holds one drawing at a time. Sketchshelf gives every drawing its own file in a sidebar library, saves as you draw, and lets you switch between drawings in one click. Drawings stay on the user's Mac as standard .excalidraw files.
