@@ -173,13 +173,14 @@ in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude d
 
 ## Installation
 
-Download the latest build for your platform from [Releases](../../releases).
+Sketchshelf runs on macOS 12 or later, on Apple Silicon and Intel.
 
-| Platform | File                              |
-| -------- | --------------------------------- |
-| macOS    | `.dmg`                            |
-| Windows  | `.msi` or `.exe`                  |
-| Linux    | `.AppImage`, `.deb`, or `.tar.gz` |
+- **Direct download:** [Sketchshelf.dmg](https://api.amore.computer/v1/apps/dev.seyon.sketchshelf/download), signed with a Developer ID and notarized by Apple. Open it and drag Sketchshelf to Applications.
+- **Mac App Store:** in review.
+
+The two builds keep separate libraries. The App Store build is sandboxed, so its drawings live in `~/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw`. The direct download uses `~/Library/Application Support/Excalidraw`. The DMG does not update itself yet, so check back here for new versions.
+
+There are no Windows or Linux builds yet.
 
 After installing, `.excalidraw` files are associated with the app — double-click any of them to open it. Files opened this way are copied into your library so they show up in the sidebar. This works whether or not the app is already running, and also via **Open With** or `open some.excalidraw` in a terminal. The original file is left untouched — edits go to the library copy. Opening a file that is already in the library just switches to it.
 
