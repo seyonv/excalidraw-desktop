@@ -78,6 +78,8 @@ function App() {
     editScreen,
     commitEditing,
     cancelEditing,
+    finishEditing,
+    endRef,
     isEditingRef,
   } = useRichTextEditing({ apiRef, containerRef: canvasAreaRef });
   useRichTextResize({ apiRef, containerRef: canvasAreaRef, isEditingRef });
@@ -117,6 +119,17 @@ function App() {
 
   const flushRef = useRef(flush);
   flushRef.current = flush;
+
+  /** Ends an open rich text edit, then writes the drawing. Anything about to
+   *  put another drawing on the canvas, or close the app, goes through this —
+   *  an edit left open is lost, or committed into the next drawing. */
+  const leave = useCallback(async () => {
+    await finishEditing();
+    await flush();
+  }, [finishEditing, flush]);
+
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
 
   /** Discards any pending write — used when the target file is going away. */
   const discardPendingSave = useCallback(() => {
@@ -201,12 +214,14 @@ function App() {
     const onVisibility = () => {
       if (document.hidden) save();
     };
+    // Leaving the window keeps an open edit open; only the page going away ends it.
+    const quit = () => leaveRef.current();
     window.addEventListener("blur", save);
-    window.addEventListener("pagehide", save);
+    window.addEventListener("pagehide", quit);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("blur", save);
-      window.removeEventListener("pagehide", save);
+      window.removeEventListener("pagehide", quit);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
@@ -263,7 +278,7 @@ function App() {
         await refreshList();
         return;
       }
-      await flushRef.current();
+      await leaveRef.current();
       try {
         openScene(name, await readDrawing(name));
         await refreshList();
@@ -287,7 +302,7 @@ function App() {
         if (!name) return;
         await refreshList();
         if (name === activeNameRef.current) return;
-        await flushRef.current();
+        await leaveRef.current();
         openScene(name, await readDrawing(name));
       } catch (e) {
         setError(String(e));
@@ -334,7 +349,7 @@ function App() {
   const handleSelect = useCallback(
     async (name) => {
       if (name === activeNameRef.current) return;
-      await flush();
+      await leave();
       try {
         openScene(name, await readDrawing(name));
         await refreshList();
@@ -342,11 +357,11 @@ function App() {
         setError(String(e));
       }
     },
-    [flush, openScene, refreshList],
+    [leave, openScene, refreshList],
   );
 
   const handleCreate = useCallback(async () => {
-    await flush();
+    await leave();
     try {
       const name = await createDrawing();
       openScene(name, null);
@@ -354,7 +369,7 @@ function App() {
     } catch (e) {
       setError(String(e));
     }
-  }, [flush, openScene, refreshList]);
+  }, [leave, openScene, refreshList]);
 
   const handleRename = useCallback(
     async (oldName, newName) => {
@@ -387,6 +402,9 @@ function App() {
   const handleDelete = useCallback(
     async (name) => {
       try {
+        // An open edit belongs to the drawing on the canvas; finish it before
+        // that drawing is replaced or the sidebar shifts under it.
+        await finishEditing();
         // Drop any queued write first, or the debounce could recreate the file.
         if (name === activeNameRef.current) discardPendingSave();
         lastWrittenRef.current.delete(name);
@@ -406,7 +424,7 @@ function App() {
         setError(String(e));
       }
     },
-    [discardPendingSave, openScene],
+    [discardPendingSave, finishEditing, openScene],
   );
 
   const toggleSidebar = useCallback(() => {
@@ -483,6 +501,7 @@ function App() {
             }}
             onCommit={commitEditing}
             onCancel={cancelEditing}
+            endRef={endRef}
           />
         )}
         {error && (

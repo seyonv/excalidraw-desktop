@@ -4,6 +4,10 @@
 // by a browser. Never part of the production build.
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
+import { fromText } from "../src/lib/richtext/model.js";
+import { layout } from "../src/lib/richtext/layout.js";
+import { canvasMeasure } from "../src/lib/richtext/measure.js";
+import { toElements } from "../src/lib/richtext/elements.js";
 
 const WATCH_DEBOUNCE_MS = 150; // mirrors WATCH_DEBOUNCE in src-tauri/src/lib.rs
 
@@ -28,7 +32,31 @@ const scene = (text) =>
     files: {},
   });
 
-const disk = new Map([["Repro", scene("Box A")]]);
+// A second drawing holding a rich text block, for editing across a switch.
+const BASE = {
+  x: 120, y: 120, id: "rt-notes", maxWidth: 420, fontSize: 20, fontFamily: 5,
+  lineHeight: 1.25, strokeColor: "#1e1e1e", groupId: "rtg-notes",
+};
+const DOC = fromText("Rich notes");
+const NOTES = JSON.stringify({
+  type: "excalidraw",
+  version: 2,
+  source: "test",
+  elements: toElements(
+    DOC,
+    layout(DOC, {
+      measure: canvasMeasure(BASE.fontSize, BASE.fontFamily),
+      maxWidth: BASE.maxWidth, fontSize: BASE.fontSize,
+      lineHeight: BASE.lineHeight, boxPadding: 6,
+    }),
+    BASE,
+  ),
+  appState: {},
+  files: {},
+});
+const EMPTY = JSON.stringify({ type: "excalidraw", version: 2, elements: [], appState: {}, files: {} });
+
+const disk = new Map([["Repro", scene("Box A")], ["Notes", NOTES]]);
 window.__writes = 0;
 
 const changed = (name, delay = WATCH_DEBOUNCE_MS) =>
@@ -46,6 +74,15 @@ mockIPC(
         window.__writes += 1;
         changed(args.name);
         return null;
+      case "create_drawing": {
+        let name = args.name ?? "Untitled";
+        for (let n = 2; disk.has(name); n++) name = `${args.name ?? "Untitled"} ${n}`;
+        disk.set(name, args.contents ?? EMPTY);
+        return name;
+      }
+      case "delete_drawing":
+        disk.delete(args.name);
+        return null;
       case "take_pending_files":
         return [];
       case "take_open_request":
@@ -60,7 +97,16 @@ mockIPC(
 const textOf = (contents) =>
   JSON.parse(contents).elements.filter((e) => e.type === "text").map((e) => e.text).join();
 
-window.__diskText = () => textOf(disk.get("Repro"));
+window.__diskText = (name = "Repro") =>
+  disk.has(name) ? textOf(disk.get(name)) : "(deleted)";
+window.__richOnDisk = (name) =>
+  disk.has(name) && JSON.parse(disk.get(name)).elements.some((e) => e.customData?.richTextId);
+window.__drawings = () => [...disk.keys()].join(",");
+/** The MCP server's open_drawing, as the watcher reports it. */
+window.__requestOpen = (name) => {
+  emit("open-request", { name });
+  return "ok";
+};
 window.__sceneText = () =>
   window.__excalidrawApi
     .getSceneElements()

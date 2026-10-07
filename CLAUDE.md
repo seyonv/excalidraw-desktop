@@ -93,6 +93,14 @@ starts formatting filenames, the seams have eroded.
   `updateScene` so the finished edit still saves.
 - **A cancelled edit must restore the exact elements that were hidden.** They are
   stashed on open for that reason — nothing else in the scene can reconstruct them.
+- **Nothing may replace or close the scene while a rich text edit is open.**
+  The overlay outlived a drawing switch, and its commit landed in whichever
+  drawing was mounted by then. Every switch, create, delete, open request,
+  file open and `pagehide` goes through `leave()` in `App.jsx`, which awaits
+  `finishEditing()` (the overlay's own commit-or-cancel) before `flush()`. The
+  commit's `updateScene` is wrapped in `flushSync` so `onChange` has marked the
+  drawing dirty before that flush runs — without it the edit is silently
+  dropped. `blur` deliberately does not end an edit.
 - **Converting ordinary text needs ⌘/Ctrl; a plain double-click is Excalidraw's.**
   Claiming the bare gesture meant you could not open a text element to fix a
   typo without it becoming a rich block for good. A block that is *already* rich

@@ -35,7 +35,7 @@ const MARK_ACTS = ["hl", "ul", "box"];
  * exactly as the prototype builds it. Letting React reconcile the children of a
  * contenteditable reintroduces the same class of hazard from the other side.
  */
-export default function RichTextOverlay({ doc: initialDoc, style, initialAct, onCommit, onCancel }) {
+export default function RichTextOverlay({ doc: initialDoc, style, initialAct, onCommit, onCancel, endRef }) {
   const editorRef = useRef(null);
   const docRef = useRef(initialDoc);
   const selRef = useRef({ start: 0, end: 0 });
@@ -275,6 +275,15 @@ export default function RichTextOverlay({ doc: initialDoc, style, initialAct, on
     if (docRef.current === initialRef.current) onCancel?.();
     else onCommit(docRef.current);
   }, [onCommit, onCancel]);
+
+  // Lets the owner end the edit the same way — e.g. before switching drawings.
+  useEffect(() => {
+    if (!endRef) return undefined;
+    endRef.current = endEdit;
+    return () => {
+      if (endRef.current === endEdit) endRef.current = null;
+    };
+  }, [endRef, endEdit]);
 
   /* ---------- input, fully controlled ---------- */
 

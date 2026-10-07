@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { CaptureUpdateAction, sceneCoordsToViewportCoords } from "@excalidraw/excalidraw";
 import { ACT_FOR_KEY } from "../../components/RichTextOverlay";
 import { fromText } from "./model";
@@ -27,8 +28,11 @@ export function useRichTextEditing({ apiRef, containerRef }) {
   const [editing, setEditing] = useState(null);
   const [editScreen, setEditScreen] = useState(null);
   const editingRef = useRef(null);
-
-
+  // The overlay's own end-of-edit, so the edit can be ended from outside —
+  // see finishEditing. The overlay decides commit vs cancel; we never guess.
+  const endRef = useRef(null);
+  // A commit still waiting on fonts: its block is out of the scene until it lands.
+  const pendingRef = useRef(null);
 
   /** Where a scene point sits inside the container, plus the current zoom. */
   const screenFor = useCallback((base) => {
@@ -85,30 +89,43 @@ export function useRichTextEditing({ apiRef, containerRef }) {
     [screenFor],
   );
 
-  const commitEditing = useCallback(async (doc) => {
+  const commitEditing = useCallback((doc) => {
     const current = editingRef.current;
-    if (!current) return;
+    if (!current) return pendingRef.current ?? Promise.resolve();
     const { base, elementIds } = current;
     // Clear first: the updateScene below must be seen by handleChange so the
     // finished edit is autosaved.
     editingRef.current = null;
-    await fontsReady();
+    // The scene this edit was opened in. Taken now, not after the await: if a
+    // different drawing is mounted by then, the block must not land in it.
     const api = apiRef.current;
-    if (!api) return;
-    const laidOut = layout(doc, {
-      measure: canvasMeasure(base.fontSize, base.fontFamily),
-      maxWidth: base.maxWidth,
-      fontSize: base.fontSize,
-      lineHeight: base.lineHeight,
-      boxPadding: BOX_PADDING,
+    const done = (async () => {
+      await fontsReady();
+      if (api) {
+        const laidOut = layout(doc, {
+          measure: canvasMeasure(base.fontSize, base.fontFamily),
+          maxWidth: base.maxWidth,
+          fontSize: base.fontSize,
+          lineHeight: base.lineHeight,
+          boxPadding: BOX_PADDING,
+        });
+        const rest = api.getSceneElements().filter((el) => !elementIds.includes(el.id));
+        // Synchronous, so Excalidraw's onChange has marked the drawing dirty
+        // by the time this resolves — a switch that awaited it flushes next.
+        flushSync(() => {
+          api.updateScene({
+            elements: [...rest, ...toElements(doc, laidOut, base)],
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+          });
+        });
+      }
+      setEditing(null);
+      setEditScreen(null);
+    })().finally(() => {
+      if (pendingRef.current === done) pendingRef.current = null;
     });
-    const rest = api.getSceneElements().filter((el) => !elementIds.includes(el.id));
-    api.updateScene({
-      elements: [...rest, ...toElements(doc, laidOut, base)],
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-    setEditing(null);
-    setEditScreen(null);
+    pendingRef.current = done;
+    return done;
   }, []);
 
   /** Nothing changed, so put back exactly what was hidden. */
@@ -118,19 +135,38 @@ export function useRichTextEditing({ apiRef, containerRef }) {
     editingRef.current = null;
     const api = apiRef.current;
     if (api) {
+      // flushSync for the same reason as the commit: a switch flushes next.
       // EVENTUALLY defers this restore into the next IMMEDIATELY rather than
       // excluding it from history: NEVER instead advances the undo baseline
       // to include the restore, making that z-order change un-undoable, and
       // it would also swallow any EVENTUALLY still pending from before the
       // edit opened.
-      api.updateScene({
-        elements: [...api.getSceneElements(), ...current.hidden],
-        captureUpdate: CaptureUpdateAction.EVENTUALLY,
+      flushSync(() => {
+        api.updateScene({
+          elements: [...api.getSceneElements(), ...current.hidden],
+          captureUpdate: CaptureUpdateAction.EVENTUALLY,
+        });
       });
     }
     setEditing(null);
     setEditScreen(null);
   }, []);
+
+  /**
+   * Ends any open edit exactly as clicking away would, and resolves once the
+   * block is back in the scene. Anything about to replace or write the scene —
+   * switching drawings, quitting — awaits this first, or the block is lost or
+   * lands in the next drawing. Resolves true if an edit was open.
+   */
+  const finishEditing = useCallback(async () => {
+    const open = Boolean(editingRef.current || pendingRef.current);
+    if (editingRef.current) {
+      if (endRef.current) endRef.current();
+      else cancelEditing();
+    }
+    await pendingRef.current;
+    return open;
+  }, [cancelEditing]);
 
   // Double-clicking a rich text block opens our editor instead of Excalidraw's.
   useEffect(() => {
@@ -230,5 +266,13 @@ export function useRichTextEditing({ apiRef, containerRef }) {
     return api.onScrollChange(() => setEditScreen(screenFor(editing.base)));
   }, [editing, screenFor]);
 
-  return { editing, editScreen, commitEditing, cancelEditing, isEditingRef: editingRef };
+  return {
+    editing,
+    editScreen,
+    commitEditing,
+    cancelEditing,
+    finishEditing,
+    endRef,
+    isEditingRef: editingRef,
+  };
 }
