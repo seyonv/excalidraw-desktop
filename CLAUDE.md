@@ -137,6 +137,14 @@ starts formatting filenames, the seams have eroded.
 - **`updateScene` with no `elements` key wipes the scene.** Every call must pass
   the elements it wants to keep, even one that only means to change `appState`.
 
+- **`onChange` is not an edit.** Excalidraw fires it on every render, including
+  ones only our own state caused — `refreshList()` runs on every watcher event.
+  Marking those dirty made each autosave's echo arm the next one: a write every
+  ~0.77s forever, so any change made on disk was overwritten by the stale scene
+  within a tick and its watcher event then read as our own echo. `handleChange`
+  drops a call whose elements hash, `appState` and `files` are all unchanged.
+  `npm run test:library` pins it.
+
 - **Never write a drawing with `fs::write`.** It truncates the destination
   before writing a byte and never fsyncs, so a crash or a `kill -9` part-way
   through a 9MB scene leaves a truncated file. `write_atomic()` (temp file →

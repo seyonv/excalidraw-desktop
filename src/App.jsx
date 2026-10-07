@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Excalidraw, MainMenu } from "@excalidraw/excalidraw";
+import {
+  CaptureUpdateAction,
+  Excalidraw,
+  MainMenu,
+  hashElementsVersion,
+} from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
@@ -62,6 +67,11 @@ function App() {
   // it is what replaced a 9MB drawing with a blank one. Starts true for a
   // drawing that really is empty, which has nothing to protect.
   const sceneSettledRef = useRef(true);
+  // What the last onChange reported. Excalidraw fires onChange on every render,
+  // including ones only our own state caused — the sidebar list refreshing on
+  // every watcher event — and treating those as edits kept a stale save armed
+  // forever: write → watch → refresh → onChange → write.
+  const lastSeenRef = useRef(null);
 
   const {
     editing,
@@ -292,7 +302,18 @@ function App() {
     window.EXCALIDRAW_ASSET_PATH = "/";
   }, []);
 
-  const handleChange = useCallback((elements, appState) => {
+  const handleChange = useCallback((elements, appState, files) => {
+    const version = hashElementsVersion(elements);
+    const seen = lastSeenRef.current;
+    if (
+      seen &&
+      seen.version === version &&
+      seen.appState === appState &&
+      seen.files === files
+    ) {
+      return; // a re-render, not a change
+    }
+    lastSeenRef.current = { version, appState, files };
     setTheme(appState.theme ?? "light");
     // The scene has produced its contents, so from here an empty scene is a
     // real deletion rather than a half-loaded drawing.
