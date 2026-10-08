@@ -10,7 +10,7 @@ process.env.EXCALIDRAW_LIBRARY_DIR = dir;
 // Never launch a real app from the test suite.
 process.env.EXCALIDRAW_APP = "true";
 
-const { requestOpen, OPEN_REQUEST_FILE, launcher, APP_BUNDLE } = await import("./control.js");
+const { requestOpen, OPEN_REQUEST_FILE, launcher, BUNDLE_ID } = await import("./control.js");
 const { listDrawings } = await import("./library.js");
 const requestPath = join(dir, OPEN_REQUEST_FILE);
 
@@ -180,14 +180,14 @@ test("garbage EXCALIDRAW_MCP_FOCUS value like 'banana' writes but does NOT launc
 test("launcher() returns default when EXCALIDRAW_APP is unset", () => {
   delete process.env.EXCALIDRAW_APP;
   const [cmd, args] = launcher();
-  assert.deepEqual([cmd, args], ["open", [APP_BUNDLE]]);
+  assert.deepEqual([cmd, args], ["open", ["-b", BUNDLE_ID]]);
   process.env.EXCALIDRAW_APP = "true";
 });
 
 test("launcher() returns default when EXCALIDRAW_APP is empty string (falsy fallback case)", () => {
   process.env.EXCALIDRAW_APP = "";
   const [cmd, args] = launcher();
-  assert.deepEqual([cmd, args], ["open", [APP_BUNDLE]], "empty string must fall back to default, not spawn empty command");
+  assert.deepEqual([cmd, args], ["open", ["-b", BUNDLE_ID]], "empty string must fall back to default, not spawn empty command");
   process.env.EXCALIDRAW_APP = "true";
 });
 

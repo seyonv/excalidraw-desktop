@@ -5,23 +5,20 @@
 import { promises as fs } from "node:fs";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { libraryDir } from "./library.js";
 
 export const OPEN_REQUEST_FILE = ".open-request";
 
 const focusMode = () => process.env.EXCALIDRAW_MCP_FOCUS || "focus";
 
-// The release bundle that `npm run tauri build -- --bundles app` produces.
-// `open` launches it, or focuses it if it is already running.
-export const APP_BUNDLE = fileURLToPath(
-  new URL("../../src-tauri/target/release/bundle/macos/Sketchshelf.app", import.meta.url),
-);
+// Whichever Sketchshelf is installed — the App Store copy, the DMG, or a local
+// build. `open -b` launches it by bundle id, or focuses it if it is running.
+export const BUNDLE_ID = "dev.seyon.sketchshelf";
 
 export function launcher() {
   const custom = process.env.EXCALIDRAW_APP;
   if (custom) return [custom, []];
-  return ["open", [APP_BUNDLE]];
+  return ["open", ["-b", BUNDLE_ID]];
 }
 
 export async function requestOpen(name) {
