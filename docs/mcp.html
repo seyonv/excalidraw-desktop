@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Draw with Claude · Sketchshelf</title>
+  <meta name="description" content="Set up the Sketchshelf MCP server so Claude Code can create and edit drawings in your library.">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="preload" href="assets/Excalifont.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body class="doc">
+<div class="page">
+  <nav class="bar" aria-label="Site">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="">Sketchshelf</a>
+    <a href="index.html#features">Features</a>
+    <a href="mcp.html" aria-current="page">Claude</a>
+    <a href="support.html">Help</a>
+    <a href="https://github.com/seyonv/excalidraw-desktop">Source</a>
+  </nav>
+
+  <main class="text">
+    <h1>Draw with Claude</h1>
+    <p class="lede">Sketchshelf comes with an MCP server, a small program that lets Claude Code use your drawing library as a tool. Ask for a diagram and it appears in the sidebar, laid out and ready to edit by hand.</p>
+
+    <h2>Set it up</h2>
+    <p>You need Claude Code, Node.js 18 or later, and Sketchshelf installed. The server lives in the app's source code, so it takes three commands:</p>
+<pre>git clone https://github.com/seyonv/excalidraw-desktop.git ~/sketchshelf-mcp
+cd ~/sketchshelf-mcp &amp;&amp; npm install
+claude mcp add --scope user excalidraw -- node ~/sketchshelf-mcp/mcp/server.js</pre>
+    <p>Restart Claude Code, then ask it something like:</p>
+<pre>Draw the login flow: Client, API, Postgres, with arrows
+down the chain. Label the first arrow "POST /login".</pre>
+    <p>Claude writes the drawing into your library and opens it in Sketchshelf. If the drawing is already open, it updates in place: your scroll and zoom stay put, and <kbd>⌘</kbd> <kbd>Z</kbd> undoes whatever Claude changed.</p>
+
+    <h2>Which copy of the app it uses</h2>
+    <p>The server works out of the box with the <strong>direct download</strong>. Both use <code>~/Library/Application Support/Excalidraw</code>.</p>
+    <p>The <strong>Mac App Store</strong> copy is sandboxed by Apple, so it keeps its drawings in its own folder. To point Claude at that library, add this to the command above, before the <code>--</code>:</p>
+<pre>-e EXCALIDRAW_LIBRARY_DIR="$HOME/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw"</pre>
+
+    <h2>What Claude can do</h2>
+    <table class="keys">
+      <tr><td><code>draw</code></td><td>Create or replace a whole diagram from boxes and arrows. Layout is automatic.</td></tr>
+      <tr><td><code>edit</code></td><td>Move, recolour, resize, retext or remove elements, keeping everything else, including your hand edits.</td></tr>
+      <tr><td><code>describe_scene</code></td><td>Read what's on a drawing: text, positions and arrows. Claude does this before editing.</td></tr>
+      <tr><td><code>list_drawings</code></td><td>List the library, newest first.</td></tr>
+      <tr><td><code>open_drawing</code></td><td>Bring Sketchshelf forward on a drawing.</td></tr>
+      <tr><td><code>rename_drawing</code></td><td>Rename a drawing.</td></tr>
+      <tr><td><code>delete_drawing</code></td><td>Delete a drawing. Its last 20 versions stay in <code>.history</code>.</td></tr>
+    </table>
+
+    <h2>Settings</h2>
+    <table class="keys">
+      <tr><td><code>EXCALIDRAW_MCP_FOCUS</code></td><td><code>focus</code> (default) brings the app forward, <code>switch</code> changes the drawing without stealing focus, <code>off</code> only writes files.</td></tr>
+      <tr><td><code>EXCALIDRAW_LIBRARY_DIR</code></td><td>Where the drawings live. See above for the App Store copy.</td></tr>
+      <tr><td><code>EXCALIDRAW_APP</code></td><td>A program to launch instead of the installed Sketchshelf.</td></tr>
+    </table>
+
+    <h2>If something's off</h2>
+    <ul>
+      <li><strong>Claude says it drew something, but it isn't in the sidebar.</strong> The server and the app are looking at different folders. This usually means you're on the App Store copy; set <code>EXCALIDRAW_LIBRARY_DIR</code> as shown above.</li>
+      <li><strong>macOS asks whether your terminal can access data from other apps.</strong> That happens when the server reads the App Store copy's folder. Allow it, or Claude can't see that library.</li>
+      <li><strong>Claude doesn't list the tools.</strong> Run <code>claude mcp list</code>. If <code>excalidraw</code> isn't connected, check that <code>node --version</code> is 18 or later and that <code>npm install</code> finished.</li>
+      <li><strong>The app doesn't come forward.</strong> Check <code>EXCALIDRAW_MCP_FOCUS</code> isn't set to <code>off</code>.</li>
+    </ul>
+    <p>Still stuck? <a href="support.html">Get help</a>.</p>
+  </main>
+
+  <footer>
+    <p>Sketchshelf is an independent project built on the open-source Excalidraw editor, and is not affiliated with Excalidraw or Anthropic.</p>
+  </footer>
+</div>
+</body>
+</html>

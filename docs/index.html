@@ -4,28 +4,144 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sketchshelf</title>
-  <meta name="description" content="A library for your hand-drawn diagrams and sketches on the Mac, built on the open-source Excalidraw editor.">
+  <meta name="description" content="A Mac app for hand-drawn diagrams and whiteboards, built on Excalidraw. A library of drawings saved as files, text you can mark up, and Claude can draw with you.">
+  <meta property="og:title" content="Sketchshelf">
+  <meta property="og:description" content="Every sketch you make, on one shelf. A free Mac app built on Excalidraw.">
+  <meta property="og:image" content="assets/hero.jpg">
   <link rel="icon" href="assets/icon.png">
+  <link rel="preload" href="assets/Excalifont.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
+<div class="page">
+  <nav class="bar" aria-label="Site">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="">Sketchshelf</a>
+    <a href="#features">Features</a>
+    <a href="mcp.html">Claude</a>
+    <a href="support.html">Help</a>
+    <a href="https://github.com/seyonv/excalidraw-desktop">Source</a>
+  </nav>
+
   <header>
-    <img class="icon" src="assets/icon.png" alt="">
-    <h1>Sketchshelf</h1>
-    <p>Every hand-drawn diagram, sketch and whiteboard you make, on one shelf on your Mac.</p>
-    <img class="hero" src="assets/hero.jpg" alt="Sketchshelf showing a library of drawings in a sidebar next to a flowchart">
+    <h1>Every sketch you make,<br>on one shelf.</h1>
+    <p class="lede">Sketchshelf is a Mac app for hand-drawn diagrams and whiteboards, built on the open-source Excalidraw editor. It keeps all your drawings in a library, lets you mark up text the way you would by hand, and lets Claude draw with you.</p>
+    <div class="actions">
+      <a class="btn" href="https://api.amore.computer/v1/apps/dev.seyon.sketchshelf/download">Download for Mac</a>
+      <span class="aside">Free. macOS 12 or later, Apple Silicon and Intel.<br>The Mac App Store version is in review.</span>
+    </div>
+    <figure class="shot">
+      <img src="assets/hero.jpg" width="1600" height="1000" alt="Sketchshelf: a sidebar listing ten drawings, and a launch-plan flowchart with a note whose words are coloured, highlighted and underlined">
+      <figcaption>The sidebar holds every drawing. The yellow note is a single text block with four styles in it.</figcaption>
+    </figure>
   </header>
-  <nav><a href="support.html">Support</a><a href="privacy.html">Privacy</a><a href="https://github.com/seyonv/excalidraw-desktop">Source</a></nav>
-  <main>
-    <h2>A shelf for all your drawings</h2>
-    <p>Every drawing sits in a sidebar. Switch between them in one click; the one you leave is saved first. Create, rename and delete without leaving the canvas.</p>
-    <h2>Saved as you draw</h2>
-    <p>There is no save button. Your work is written to disk a moment after you stop drawing, as a standard <code>.excalidraw</code> file.</p>
-    <h2>Emphasis inside one text block</h2>
-    <p>Colour, highlight, underline or box a single phrase without splitting your note into pieces.</p>
+
+  <section class="feature" id="features">
+    <div class="text">
+      <h2>A library, not a browser tab</h2>
+      <p>Every drawing sits in the sidebar. <strong>Click one to switch</strong>; the drawing you leave is saved first. Sort by name or by what you edited last, double-click a name to rename it, and collapse the sidebar when you want the whole window.</p>
+      <p>Each drawing is a standard <code>.excalidraw</code> file in a folder on your Mac. Nothing is uploaded, and there is no account.</p>
+    </div>
+    <div class="files" aria-label="The library folder"><span class="dim">~/Library/Application Support/Excalidraw/</span>
+  Checkout architecture.excalidraw
+  Kitchen remodel.excalidraw
+  Q4 launch plan.excalidraw
+  Reading notes.excalidraw
+  Sprint retro.excalidraw
+  <span class="dim">.history/</span></div>
+  </section>
+
+  <section class="feature">
+    <div class="text">
+      <h2>Mark up a note like you would by hand</h2>
+      <p>In Excalidraw a text box has one colour. In Sketchshelf, <strong>one note can mix styles</strong>: colour a date, highlight the line that matters, underline a name, put a box around a word.</p>
+      <p><kbd>⌘</kbd>-double-click any text to open the editor, select a word and press a shortcut. Typing <code>**word**</code>, <code>==word==</code> or <code>__word__</code> styles it as you go.</p>
+      <p><strong>Drag a note's left or right edge</strong> to re-wrap it at the same size. Corners still scale it, as usual.</p>
+    </div>
+    <div>
+      <div class="note">Ship on <span class="b">November 12</span>. The <span class="g">marketing site</span> goes live <span class="hl">the same morning</span>, and the embargo lifts at <span class="bx r">9am</span>. Owner: <span class="ul">Maya</span>.</div>
+      <p class="note-cap">One text block, five styles.</p>
+      <table class="keys">
+        <tr><td><kbd>⌘</kbd> <kbd>B</kbd></td><td>Blue</td></tr>
+        <tr><td><kbd>⌘</kbd> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Red, green, orange</td></tr>
+        <tr><td><kbd>⌘</kbd> <kbd>H</kbd></td><td>Highlight</td></tr>
+        <tr><td><kbd>⌘</kbd> <kbd>U</kbd></td><td>Underline</td></tr>
+        <tr><td><kbd>⌘</kbd> <kbd>E</kbd></td><td>Box</td></tr>
+        <tr><td><kbd>⌘</kbd> <kbd>\</kbd></td><td>Clear the styling</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="feature">
+    <div class="text">
+      <h2>Saved as you draw</h2>
+      <p>There is no save button. Your drawing is written to disk <strong>a moment after you stop</strong>, and again whenever you switch drawings or leave the window.</p>
+      <p>Each save replaces the file in one step, so a crash can't leave half a drawing. The <strong>last 20 versions</strong> of every drawing are kept in a hidden <code>.history</code> folder, in case you need one back.</p>
+    </div>
+    <div class="files" aria-label="Saved versions of one drawing"><span class="dim">.history/Q4 launch plan/</span>
+  1791406957787.bak   <span class="dim">10:02</span>
+  1791406999290.bak   <span class="dim">10:03</span>
+  1791407043980.bak   <span class="dim">10:04</span>
+  <span class="dim">… up to 20</span></div>
+  </section>
+
+  <section class="feature">
+    <div class="text">
+      <h2>Claude can draw with you</h2>
+      <p>Sketchshelf comes with an MCP server for <strong>Claude Code</strong>. Ask for a diagram and it appears in your library, laid out and ready to edit by hand. Change it yourself and Claude sees your changes the next time it looks.</p>
+      <p>If the drawing is open, it updates in place. <kbd>⌘</kbd> <kbd>Z</kbd> undoes anything Claude did.</p>
+      <p><a href="mcp.html">Set it up</a></p>
+    </div>
+    <pre>&gt; draw the checkout flow: cart, address,
+  payment, confirm
+
+● draw "Checkout flow"
+  4 boxes, 3 arrows
+
+✓ opened in Sketchshelf</pre>
+  </section>
+
+  <section class="feature">
+    <div class="text">
+      <h2>Bring your drawings with you</h2>
+      <p>Double-click any <code>.excalidraw</code> file in Finder, or press <kbd>⌘</kbd> <kbd>O</kbd> to pick several at once. Each is copied into your library, and the original stays where it was.</p>
+      <p>Export a PNG or SVG, or save a copy of the file anywhere, from the menu on the canvas.</p>
+    </div>
+    <div class="text">
+      <h3>Everything else is Excalidraw</h3>
+      <p>The tools, shortcuts, shapes, libraries and file format are the Excalidraw you know. Sketchshelf adds to the editor; it doesn't change it.</p>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Compared with Excalidraw on the web</h2>
+    <div class="table-wrap">
+      <table class="compare">
+        <tr><th></th><th>excalidraw.com</th><th>Sketchshelf</th></tr>
+        <tr><td>Drawings open at once</td><td>One scene. Others are files you save and reopen.</td><td>A library of them, one click apart</td></tr>
+        <tr><td>Where they're kept</td><td>Your browser's storage, or Excalidraw's servers for share links</td><td>Files on your Mac, never uploaded</td></tr>
+        <tr><td>Styling text</td><td>One colour per text box</td><td>Colour, highlight, underline and box inside one note</td></tr>
+        <tr><td>Saving</td><td>Kept in the browser; export to keep a file</td><td>Every change saved to disk, 20 versions kept</td></tr>
+        <tr><td>AI drawing on your canvas</td><td>Text-to-diagram inside the web app</td><td>Claude Code edits your real drawings</td></tr>
+        <tr><td>Live collaboration</td><td>Yes</td><td>No, it's a single-person app</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="band">
     <h2>Private by design</h2>
-    <p>No account, no analytics, no network. Your drawings never leave your Mac.</p>
-    <p class="muted">Sketchshelf is built on the open-source <a href="https://github.com/excalidraw/excalidraw">Excalidraw</a> editor (MIT licensed) and opens and saves standard .excalidraw files. It is an independent project and is not affiliated with or endorsed by Excalidraw.</p>
-  </main>
+    <div class="text">
+      <p>No account, no analytics, no crash reporting. The app is built so it cannot connect to the internet at all, even for Excalidraw's own online features. <a href="privacy.html">Privacy policy</a></p>
+    </div>
+    <div class="actions">
+      <a class="btn" href="https://api.amore.computer/v1/apps/dev.seyon.sketchshelf/download">Download for Mac</a>
+      <span class="aside">Free, signed and notarized by Apple.</span>
+    </div>
+  </section>
+
+  <footer>
+    <p>Sketchshelf is built on the open-source <a href="https://github.com/excalidraw/excalidraw">Excalidraw</a> editor (MIT licence) and opens and saves standard <code>.excalidraw</code> files. It is an independent project, not affiliated with or endorsed by Excalidraw. Headings are set in Excalifont, released by the Excalidraw project under the SIL Open Font License.</p>
+    <p><a href="support.html">Help</a> &nbsp; <a href="privacy.html">Privacy</a> &nbsp; <a href="mcp.html">Claude setup</a> &nbsp; <a href="https://github.com/seyonv/excalidraw-desktop">Source</a></p>
+  </footer>
+</div>
 </body>
 </html>

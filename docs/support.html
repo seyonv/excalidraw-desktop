@@ -5,16 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sketchshelf Support</title>
   <link rel="icon" href="assets/icon.png">
+  <link rel="preload" href="assets/Excalifont.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="site.css">
 </head>
-<body>
-  <nav><a href="index.html">Sketchshelf</a><a href="support.html">Support</a><a href="privacy.html">Privacy</a></nav>
-  <main>
+<body class="doc">
+<div class="page">
+  <nav class="bar" aria-label="Site">
+    <a class="brand" href="index.html"><img src="assets/icon.png" alt="">Sketchshelf</a>
+    <a href="index.html#features">Features</a>
+    <a href="mcp.html">Claude</a>
+    <a href="support.html" aria-current="page">Help</a>
+    <a href="https://github.com/seyonv/excalidraw-desktop">Source</a>
+  </nav>
+  <main class="text">
     <h1>Support</h1>
     <p>Found a bug or have an idea? Email <a href="mailto:seyon.vasantharajan@gmail.com">seyon.vasantharajan@gmail.com</a> or open an issue on <a href="https://github.com/seyonv/excalidraw-desktop/issues">GitHub</a>.</p>
 
     <h2>Where are my drawings stored?</h2>
-    <p>Inside the app's folder at <code>~/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw</code>. Each drawing is a standard <code>.excalidraw</code> file named after the drawing.</p>
+    <p>On your Mac, as standard <code>.excalidraw</code> files named after each drawing. Where depends on which copy you installed:</p>
+    <ul>
+      <li><strong>Direct download:</strong> <code>~/Library/Application Support/Excalidraw</code></li>
+      <li><strong>Mac App Store:</strong> <code>~/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw</code></li>
+    </ul>
+    <p>The two copies keep separate libraries. If you switch from one to the other, open the old folder in Finder and drag your drawings onto the new app, or use <strong>File → Open…</strong>.</p>
 
     <h2>How do I get a drawing out?</h2>
     <p>Open the ☰ menu on the canvas. <strong>Export image</strong> saves a PNG or SVG, and <strong>Save to…</strong> saves a copy of the <code>.excalidraw</code> file anywhere you choose.</p>
@@ -23,10 +36,14 @@
     <p>Double-click any <code>.excalidraw</code> file in Finder, or use <strong>File → Open…</strong> (⌘O) to pick several at once. A copy is added to your library; the original is left untouched.</p>
 
     <h2>How do I style part of a text block?</h2>
-    <p>Select a text element and press ⌘B (blue), ⌘1/⌘2/⌘3 (red, green, orange), ⌘H (highlight), ⌘U (underline) or ⌘E (box). Double-click a styled block to edit it and style individual phrases.</p>
+    <p>Hold <kbd>⌘</kbd> and double-click any text to open the editor. Select a word, then press <kbd>⌘</kbd><kbd>B</kbd> (blue), <kbd>⌘</kbd><kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> (red, green, orange), <kbd>⌘</kbd><kbd>H</kbd> (highlight), <kbd>⌘</kbd><kbd>U</kbd> (underline) or <kbd>⌘</kbd><kbd>E</kbd> (box). <kbd>⌘</kbd><kbd>\</kbd> clears the styling. A note that's already styled opens the editor on a plain double-click.</p>
+
+    <h2>How do I get updates?</h2>
+    <p>The Mac App Store copy updates itself. The direct download doesn't yet, so check <a href="index.html">this site</a> for new versions and download again. Your drawings stay where they are.</p>
 
     <h2>I deleted a drawing by mistake</h2>
-    <p>The app keeps the last 20 saved versions of each drawing in a hidden <code>.history</code> folder next to your drawings. Email us and we will walk you through restoring one.</p>
+    <p>The app keeps the last 20 saved versions of each drawing in a hidden <code>.history</code> folder next to your drawings. To get one back, open the folder above in Finder, press <kbd>⌘</kbd><kbd>⇧</kbd><kbd>.</kbd> to show hidden files, and look in <code>.history/&lt;drawing name&gt;</code>. Each <code>.bak</code> file is a full copy of the drawing: rename one to end in <code>.excalidraw</code> and open it with <strong>File → Open…</strong>. Or email us and we'll walk you through it.</p>
   </main>
+</div>
 </body>
 </html>
