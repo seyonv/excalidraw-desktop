@@ -175,6 +175,8 @@ in place — your scroll and zoom stay put, and `Cmd+Z` undoes anything Claude d
 
 Sketchshelf runs on macOS 12 or later, on Apple Silicon and Intel.
 
+The website is [sketchshelf.pages.dev](https://sketchshelf.pages.dev), and it includes [Claude setup](https://sketchshelf.pages.dev/mcp).
+
 - **Direct download:** [Sketchshelf.dmg](https://api.amore.computer/v1/apps/dev.seyon.sketchshelf/download), signed with a Developer ID and notarized by Apple. Open it and drag Sketchshelf to Applications.
 - **Mac App Store:** in review.
 
@@ -202,6 +204,7 @@ npm run test:richtext  # test the inline-emphasis model, layout and elements
 npm run test:overlay   # drive the text editor in a real browser (needs `npm run dev`)
 npm run test:app       # drive it against a real Excalidraw canvas (needs `npm run dev`)
 npm run test:library   # drive the app's autosave against a mocked library and watcher (needs `npm run dev`)
+scripts/deploy-site.sh # publish docs/ (public pages only) to https://sketchshelf.pages.dev
 ```
 
 ### Mac App Store build
