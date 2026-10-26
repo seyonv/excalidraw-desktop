@@ -117,6 +117,14 @@ function App() {
     }
   }, [isEditingRef]);
 
+  /** Creates a drawing and remembers the bytes on disk, so the watcher event
+   *  for the file's own creation reads as our echo, not an external change. */
+  const create = useCallback(async (name, contents) => {
+    const created = await createDrawing(name, contents);
+    lastWrittenRef.current.set(created, await readDrawing(created));
+    return created;
+  }, []);
+
   const flushRef = useRef(flush);
   flushRef.current = flush;
 
@@ -164,7 +172,7 @@ function App() {
         if (legacyElements) {
           try {
             const legacyState = localStorage.getItem("excalidrawState");
-            await createDrawing(
+            await create(
               "My Drawing",
               serializeScene(
                 JSON.parse(legacyElements),
@@ -194,7 +202,7 @@ function App() {
         target = list.some((d) => d.name === last) ? last : list[0]?.name;
       }
       if (!target) {
-        target = await createDrawing();
+        target = await create();
         list = await listDrawings();
       }
 
@@ -205,7 +213,7 @@ function App() {
       setError(String(e));
       setReady(true);
     });
-  }, [openScene]);
+  }, [create, openScene]);
 
   // Saves are debounced because onChange is high-frequency; these listeners
   // force a write at the moments the app is most likely to go away.
@@ -363,13 +371,13 @@ function App() {
   const handleCreate = useCallback(async () => {
     await leave();
     try {
-      const name = await createDrawing();
+      const name = await create();
       openScene(name, null);
       await refreshList();
     } catch (e) {
       setError(String(e));
     }
-  }, [leave, openScene, refreshList]);
+  }, [leave, create, openScene, refreshList]);
 
   const handleRename = useCallback(
     async (oldName, newName) => {
@@ -415,7 +423,7 @@ function App() {
             const next = list[0].name;
             openScene(next, await readDrawing(next));
           } else {
-            openScene(await createDrawing(), null);
+            openScene(await create(), null);
             list = await listDrawings();
           }
         }
@@ -424,7 +432,7 @@ function App() {
         setError(String(e));
       }
     },
-    [discardPendingSave, finishEditing, openScene],
+    [create, discardPendingSave, finishEditing, openScene],
   );
 
   const toggleSidebar = useCallback(() => {

@@ -57,8 +57,15 @@ export const onOpenRequest = (handler) =>
 export const onFilesOpened = (handler) => listen("files-opened", handler);
 
 /** Serializes a live Excalidraw scene into the standard export format. */
+// Transient UI state Excalidraw keeps in appState. Written to a file, it
+// would come back on load: a drawing saved with the export dialog open
+// reopened with the dialog open.
+const TRANSIENT = ["collaborators", "openDialog", "openMenu", "openPopup", "openSidebar", "contextMenu"];
+const persistent = (appState) =>
+  Object.fromEntries(Object.entries(appState ?? {}).filter(([k]) => !TRANSIENT.includes(k)));
+
 export function serializeScene(elements, appState, files) {
-  const { collaborators, ...rest } = appState ?? {};
+  const rest = persistent(appState);
   return JSON.stringify({
     type: "excalidraw",
     version: 2,
@@ -75,10 +82,9 @@ export function parseScene(contents) {
   if (!contents) return empty;
   try {
     const data = JSON.parse(contents);
-    const { collaborators, ...appState } = data.appState ?? {};
     return {
       elements: Array.isArray(data.elements) ? data.elements : [],
-      appState,
+      appState: persistent(data.appState),
       files: data.files ?? {},
     };
   } catch (e) {

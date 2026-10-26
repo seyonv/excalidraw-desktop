@@ -76,6 +76,14 @@ starts formatting filenames, the seams have eroded.
   raw name while the file is written under the sanitised one poisons
   `activeNameRef` in `App.jsx` and silently breaks live reload for that drawing.
 
+- **A created drawing's bytes go into `lastWrittenRef` before anything else
+  can see the file.** `create()` in `App.jsx` reads the file straight back
+  after `create_drawing`. Without that, the watcher event for the file's own
+  creation looked like an external change and showed "Updated externally".
+- **Transient Excalidraw UI state never reaches disk.** `serializeScene` and
+  `parseScene` drop `openDialog`, `openMenu`, `openPopup`, `openSidebar` and
+  `contextMenu`. A drawing saved with the export dialog open used to reopen
+  with the dialog open.
 - **The rich text pipeline is model → layout → elements, and each stays pure.**
   `layout.js` takes its measure function as a parameter so it never imports
   `measure.js` (the only file needing a browser). Keep it that way — it is why
