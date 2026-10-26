@@ -310,8 +310,12 @@ function App() {
         if (!name) return;
         await refreshList();
         if (name === activeNameRef.current) return;
+        // The import just wrote this file; remember its bytes so the watcher
+        // event for that write reads as our echo once it is the active drawing.
+        const contents = await readDrawing(name);
+        lastWrittenRef.current.set(name, contents);
         await leaveRef.current();
-        openScene(name, await readDrawing(name));
+        openScene(name, contents);
       } catch (e) {
         setError(String(e));
       }
@@ -320,6 +324,21 @@ function App() {
       unlisten.then((off) => off()).catch(() => {});
     };
   }, [openScene, refreshList]);
+
+  // ⌘O is ours. Excalidraw binds it too, to its own file chooser, which loads
+  // the chosen file into the drawing on the canvas and overwrites it on the
+  // next autosave. Claim the key before Excalidraw sees it.
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "o") return;
+      if (event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pickDrawings();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
 
   useEffect(() => {
     window.EXCALIDRAW_ASSET_PATH = "/";
