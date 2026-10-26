@@ -1,5 +1,5 @@
 SUMMARY
-Sketchshelf is a free, offline Mac drawing app. It has no account or sign-in, no in-app purchases, no ads, no user-generated content sharing, and it makes no network requests. A screen recording of the full flow is attached to the Resolution Center reply for this version.
+Sketchshelf is a free, offline Mac drawing app. It has no account or sign-in, no in-app purchases, no ads, no user-generated content sharing, and it makes no network requests. A screen recording of the full flow is attached below (sketchshelf-review.mp4). Since the rejected build, build 7 adds a strict Content-Security-Policy that blocks all network access and fixes bugs that could lose recent changes.
 
 1. SCREEN RECORDING
 Recorded on a physical MacBook Air (M3) running macOS 27.0.1, not a virtual machine, starting from launch in Finder. Tested on that Mac with the same build. It covers creating a drawing, drawing on it, autosave, switching drawings, rename, text emphasis, export to PNG, File → Open, dark mode, delete, and quit and relaunch. The app has no registration, login, account deletion, sharing, reporting or paid features, so none appear.
