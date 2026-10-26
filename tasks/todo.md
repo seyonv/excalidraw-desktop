@@ -11,14 +11,17 @@ but never resubmitted because no recording existed.
 - [x] A drawing saved with the export dialog open reopened with the dialog
       open: `appState.openDialog` was written to the file. `drawings.js` now
       strips transient UI keys on save and load.
-- [x] Build 5 uploaded (fix 1); build 6 (both fixes) is the one to attach.
-- [ ] Record the review video with a dev-signed copy of build 6
-      (`scratchpad/take.sh` drives it with cliclick; 60–120 s, from Finder launch).
-- [ ] Convert to 1080p mp4, attach as a review attachment, attach build 6 to the
-      version, resubmit for review.
-- [ ] Resolution Center reply: `appstore/review/resolution-center-reply.txt`
-      (needs the ASC website; no API).
-- [ ] Commit (no attribution trailers), push, update the release memory.
+- [x] ⌘O ran Excalidraw's own file chooser as well as ours, loading the file
+      over the active drawing. Claimed the key in `App.jsx`. Build 7.
+- [x] Recorded the review video (2026-10-26, 129 s, 1080p, scripted with
+      cliclick against a dev-signed copy of build 7); copy at
+      `~/Desktop/sketchshelf-review.mp4`.
+- [x] Attached it as a review attachment, attached build 7, answered the new
+      age-rating questions (social media: no), cancelled the stale submission
+      and submitted a new one: WAITING_FOR_REVIEW since 2026-10-26 13:18 PT.
+- [ ] Resolution Center reply still needs pasting by hand from
+      `appstore/review/resolution-center-reply.txt` (website only, no API).
+- [ ] Push `main` (3 commits ahead) once you've had a look.
 
 ## Follow-ups (not blocking)
 - Switch the listing's privacy/support/marketing URLs to sketchshelf.pages.dev.
