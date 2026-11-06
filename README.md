@@ -178,7 +178,7 @@ Sketchshelf runs on macOS 12 or later, on Apple Silicon and Intel.
 The website is [sketchshelf.pages.dev](https://sketchshelf.pages.dev), and it includes [Claude setup](https://sketchshelf.pages.dev/mcp).
 
 - **Direct download:** [Sketchshelf.dmg](https://api.amore.computer/v1/apps/dev.seyon.sketchshelf/download), signed with a Developer ID and notarized by Apple. Open it and drag Sketchshelf to Applications.
-- **Mac App Store:** in review.
+- **Mac App Store:** [Sketchshelf on the Mac App Store](https://apps.apple.com/app/id6818256677).
 
 The two builds keep separate libraries. The App Store build is sandboxed, so its drawings live in `~/Library/Containers/dev.seyon.sketchshelf/Data/Library/Application Support/Excalidraw`. The direct download uses `~/Library/Application Support/Excalidraw`. The DMG does not update itself yet, so check back here for new versions.
 
